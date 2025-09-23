@@ -547,7 +547,7 @@ export default function App() {
     <div className="min-h-screen p-6 bg-[#202124] text-[#e8eaed]">
       <div className="w-full overflow-x-auto">
         <div
-          className="max-w-6xl mx-auto space-y-6"
+          className="mx-auto space-y-6"
           style={{ minWidth: DESKTOP_MIN_PX }}
         >
           {/* ヘッダ */}
@@ -1118,8 +1118,8 @@ export default function App() {
                           const bg =
                             cids.length === 1
                               ? isSummonId(cids[0])
-                                ? summonColor(cids[0])
-                                : slotColor(cids[0])
+                                ? summonColor(cids[0]) + "88"
+                                : slotColor(cids[0]) + "88"
                               : cids.length > 1
                               ? "#9ca3af"
                               : "#f3f4f6";
