@@ -654,7 +654,7 @@ export default function App() {
                                     equipment: {
                                       ...cc.equipment,
                                       weapon,
-                                      uniqueKeysSet: sanitizeUniqueKeys(
+                                      uniqueKeySet: sanitizeUniqueKeys(
                                         selected,
                                         cc.equipment.uniqueKeySet
                                       ),
