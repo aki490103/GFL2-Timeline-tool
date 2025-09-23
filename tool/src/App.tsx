@@ -219,7 +219,8 @@ const summonColor = (sid: string) => {
 
 const getSummonOption = (name: string): SummonOption | undefined =>
   SUMMON_OPTIONS.find((o) => o.name === name);
-const aliasForSummon = (name: string) => getSummonOption(name)?.alias ?? name;
+const aliasForSummon = (name: string | undefined) =>
+  name ? getSummonOption(name)?.alias ?? name : "";
 
 // アクター識別（キャラ or 召喚物）
 const isSummonId = (id: string) => id.startsWith("s");
@@ -231,8 +232,8 @@ const getCharOption = (name: string): CharacterOption | undefined =>
   CHARACTER_OPTIONS.find((o) => o.name === name);
 
 // グリッド等で表示する別名は候補リスト由来で固定
-const aliasForName = (name: string): string =>
-  getCharOption(name)?.alias ?? name;
+const aliasForName = (name: string | undefined): string =>
+  name ? getCharOption(name)?.alias ?? name : "";
 
 const uniqueKeyOptionsForName = (name: string): string[] =>
   getCharOption(name)?.uniqueKeyOptions ?? [];
@@ -547,7 +548,7 @@ export default function App() {
     <div className="min-h-screen p-6 bg-[#202124] text-[#e8eaed]">
       <div className="w-full overflow-x-auto">
         <div
-          className="mx-auto space-y-6"
+          className="max-w-6xl mx-auto space-y-6"
           style={{ minWidth: DESKTOP_MIN_PX }}
         >
           {/* ヘッダ */}
@@ -1127,13 +1128,26 @@ export default function App() {
                           return (
                             <td
                               key={cx}
-                              onClick={
-                                isBossCell(cx, ry) || !activeActorId
-                                  ? undefined
-                                  : () => placeActiveChar(cx, ry)
-                              }
+                              onClick={() => {
+                                if (isBossCell(cx, ry)) return;
+
+                                if (
+                                  cids.length === 1 &&
+                                  cids[0] !== activeActorId
+                                ) {
+                                  setActiveActorId(cids[0]);
+                                  return;
+                                }
+
+                                if (!activeActorId && cids.length >= 1) {
+                                  setActiveActorId(cids[0]);
+                                  return;
+                                }
+
+                                if (activeActorId) placeActiveChar(cx, ry);
+                              }}
                               className={`align-top ${
-                                isBossCell(cx, ry) || !activeActorId
+                                isBossCell(cx, ry)
                                   ? "cursor-not-allowed"
                                   : "cursor-pointer"
                               } rounded-none p-0 border border-gray-700 text-[14px] leading-tight select-none`}
@@ -1142,6 +1156,26 @@ export default function App() {
                                 height: CELL_PX,
                                 background: isBossCell(cx, ry) ? "#d1d5db" : bg,
                               }}
+                              role="button"
+                              title={
+                                isBossCell(cx, ry)
+                                  ? "ボス領域（配置不可）"
+                                  : activeActorId
+                                  ? "クリックで配置"
+                                  : cids[0]
+                                  ? isSummonId(cids[0])
+                                    ? `クリックで ${aliasForSummon(
+                                        tl.summons?.find(
+                                          (s) => (s.id as string) === cids[0]
+                                        )?.name
+                                      )} を選択`
+                                    : `クリックで ${aliasForName(
+                                        tl.characters?.find(
+                                          (s) => (s.id as string) === cids[0]
+                                        )?.name
+                                      )} を選択`
+                                  : "クリックで選択"
+                              }
                             >
                               {/* 中央表示＆折返し（長い別名対策） */}
                               <div className="w-full h-full flex items-center justify-center px-1">
