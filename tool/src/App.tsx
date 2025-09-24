@@ -10,6 +10,7 @@ import { SUMMON_OPTIONS, type SummonOption } from "./data/summons";
 // 型定義
 // ===============================
 type Grid = { cols: number; rows: number };
+type BossArea = { x: number; y: number; w: number; h: number };
 type Position = { x: number; y: number };
 type Summon = { id: string; name: string; alias?: string };
 
@@ -46,6 +47,7 @@ type TimelineV1 = {
   v: 1;
   title?: string;
   grid: Grid;
+  boss?: BossArea;
   characters: Character[];
   summons: Summon[];
   prep: Turn;
@@ -71,7 +73,8 @@ const createTurn = (i: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7): Turn => ({
 const makeDefaultTL = (): TimelineV1 => ({
   v: 1,
   title: "新規TL",
-  grid: { cols: 19, rows: 19 },
+  grid: defaultGrid,
+  boss: defaultBoss(defaultGrid),
   characters: [
     {
       id: "c1",
@@ -178,15 +181,25 @@ const decodeTL = (hash: string): TimelineV1 | null => {
 // };
 
 const cellKey = (x: number, y: number) => `${x},${y}`;
-const isBossCell = (x: number, y: number) =>
-  x >= 8 && x <= 10 && y >= 8 && y <= 10;
+const defaultGrid = { cols: 19, rows: 19 };
+const defaultBoss = (g: Grid): BossArea => {
+  // 盤中央 3×3（奇数グリッド想定）
+  const startX = Math.floor(g.cols / 2) - 1;
+  const startY = Math.floor(g.rows / 2) - 1;
+  return { x: Math.max(0, startX), y: Math.max(0, startY), w: 3, h: 3 };
+};
 const TURNS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
 const CELL_PX = 55;
 const DESKTOP_MIN_PX = 1280;
-const COL_LABELS = Array.from(
-  { length: 19 },
-  (_, i) => String.fromCharCode(65 + i) // 65='A'
-);
+const alphaLabel = (n: number) => {
+  let s = "";
+  let x = n;
+  while (x >= 0) {
+    s = String.fromCharCode(65 + (x % 26)) + s; // 65 = 'A'
+    x = Math.floor(x / 26) - 1;
+  }
+  return s;
+};
 
 const SLOT_COLORS: Record<string, string> = {
   c1: "#ef4444", // 赤
@@ -285,7 +298,8 @@ export default function App() {
 
   const [tl, setTl] = useState<TimelineV1>(() => {
     const restored = decodeTL(location.hash);
-    return restored ?? makeDefaultTL();
+    const base = restored ?? makeDefaultTL();
+    return base.boss ? base : { ...base, boss: defaultBoss(base.grid) };
   });
 
   const turn = useMemo(() => {
@@ -304,6 +318,11 @@ export default function App() {
     return idx === 0
       ? next.prep
       : next.turns[(idx - 1) as 0 | 1 | 2 | 3 | 4 | 5 | 6];
+  };
+
+  const isBossCell = (x: number, y: number) => {
+    const b = tl.boss ?? defaultBoss(tl.grid);
+    return x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h;
   };
 
   // ==== TLキャッシュ ====
@@ -410,7 +429,12 @@ export default function App() {
   useEffect(() => {
     const onHash = () => {
       const restored = decodeTL(location.hash);
-      if (restored) setTl(restored);
+      if (restored) {
+        setTl(() => {
+          const base = restored;
+          return base.boss ? base : { ...base, boss: defaultBoss(base.grid) }; // ★ 補完
+        });
+      }
     };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
@@ -1089,148 +1113,308 @@ export default function App() {
                 {showGrids ? "折りたたみ" : "展開"}
               </button>
             </div>
+            <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
+              {/* rows */}
+              <span className="text-white/80">縦</span>
+              <input
+                type="number"
+                min={5}
+                max={35}
+                className="w-20 px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
+                value={tl.grid.rows}
+                onChange={(e) => {
+                  const rows = Math.max(5, Math.min(35, +e.target.value || 0));
+                  setTl((prev) => ({ ...prev, grid: { ...prev.grid, rows } }));
+                }}
+              />
+              <span>×</span>
 
-            {showGrids && (
-              <div className="inline-block">
-                <table className="border-collapse table-fixed">
-                  <thead>
-                    <tr>
-                      {/* 左上の空き角（サイズはセルと同じ） */}
-                      <th
-                        className="border border-gray-700"
-                        style={{ width: CELL_PX, height: CELL_PX }}
+              {/* cols */}
+              <span className="text-white/80">横</span>
+              <input
+                type="number"
+                min={5}
+                max={35}
+                className="w-20 px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
+                value={tl.grid.cols}
+                onChange={(e) => {
+                  const cols = Math.max(5, Math.min(35, +e.target.value || 0));
+                  setTl((prev) => ({ ...prev, grid: { ...prev.grid, cols } }));
+                }}
+              />
+
+              {/* ボス領域 */}
+              <span className="ml-4 text-white/80">ボス領域</span>
+              {(() => {
+                const b = tl.boss ?? defaultBoss(tl.grid);
+                return (
+                  <>
+                    <label className="flex items-center gap-1">
+                      <span>X</span>
+                      <input
+                        type="number"
+                        min={0}
+                        className="w-16 px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
+                        value={b.x}
+                        onChange={(e) => {
+                          const x = Math.max(0, +e.target.value || 0);
+                          setTl((prev) => ({
+                            ...prev,
+                            boss: {
+                              ...(prev.boss ?? defaultBoss(prev.grid)),
+                              x,
+                            },
+                          }));
+                        }}
                       />
-                      {/* 横ヘッダ：a..s */}
-                      {COL_LABELS.map((label) => (
+                    </label>
+                    <label className="flex items-center gap-1">
+                      <span>Y</span>
+                      <input
+                        type="number"
+                        min={0}
+                        className="w-16 px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
+                        value={b.y}
+                        onChange={(e) => {
+                          const y = Math.max(0, +e.target.value || 0);
+                          setTl((prev) => ({
+                            ...prev,
+                            boss: {
+                              ...(prev.boss ?? defaultBoss(prev.grid)),
+                              y,
+                            },
+                          }));
+                        }}
+                      />
+                    </label>
+                    <label className="flex items-center gap-1">
+                      <span>W</span>
+                      <input
+                        type="number"
+                        min={1}
+                        className="w-16 px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
+                        value={b.w}
+                        onChange={(e) => {
+                          const w = Math.max(1, +e.target.value || 0);
+                          setTl((prev) => ({
+                            ...prev,
+                            boss: {
+                              ...(prev.boss ?? defaultBoss(prev.grid)),
+                              w,
+                            },
+                          }));
+                        }}
+                      />
+                    </label>
+                    <label className="flex items-center gap-1">
+                      <span>H</span>
+                      <input
+                        type="number"
+                        min={1}
+                        className="w-16 px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
+                        value={b.h}
+                        onChange={(e) => {
+                          const h = Math.max(1, +e.target.value || 0);
+                          setTl((prev) => ({
+                            ...prev,
+                            boss: {
+                              ...(prev.boss ?? defaultBoss(prev.grid)),
+                              h,
+                            },
+                          }));
+                        }}
+                      />
+                    </label>
+                  </>
+                );
+              })()}
+
+              {/* はみ出し/ボス被りを一括クリーン */}
+              <button
+                className="ml-2 px-3 py-1 rounded border bg-white text-gray-900 border-gray-300 hover:bg-gray-100"
+                title="盤外やボス領域にある配置を削除して整合性を保ちます"
+                onClick={() => {
+                  setTl((prev) => {
+                    const next = structuredClone(prev) as TimelineV1;
+                    const g = next.grid;
+                    const b = next.boss ?? defaultBoss(g);
+                    const inGrid = (p: Position) =>
+                      p.x >= 0 && p.x < g.cols && p.y >= 0 && p.y < g.rows;
+                    const inBoss = (p: Position) =>
+                      p.x >= b.x &&
+                      p.x < b.x + b.w &&
+                      p.y >= b.y &&
+                      p.y < b.y + b.h;
+                    const prune = (pl: Record<string, Position>) => {
+                      for (const k of Object.keys(pl)) {
+                        const p = pl[k];
+                        if (!p || !inGrid(p) || inBoss(p)) delete pl[k];
+                      }
+                    };
+                    if (next.prep) prune(next.prep.placements);
+                    next.turns.forEach((t) => prune(t.placements));
+                    return next;
+                  });
+                }}
+              >
+                適用
+              </button>
+            </div>
+            {showGrids && (
+              // ① 親を横スクロール可能に
+              <div className="w-full overflow-x-auto">
+                {/* ② テーブルの最小幅 = (左上角セル + 列数) * CELL_PX */}
+                <div
+                  className="inline-block"
+                  style={{ minWidth: (tl.grid.cols + 1) * CELL_PX }}
+                >
+                  {/* ③ table は固定レイアウトのまま */}
+                  <table
+                    className="border-collapse table-fixed"
+                    // Safari の収縮対策（念のため明示）
+                    style={{ tableLayout: "fixed" as const }}
+                  >
+                    <thead>
+                      <tr>
+                        {/* 左上の空き角 */}
                         <th
-                          key={label}
-                          className="border border-gray-700 text-xs font-medium text-gray-300 text-center"
+                          className="border border-gray-700"
                           style={{ width: CELL_PX, height: CELL_PX }}
-                        >
-                          {label}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {Array.from({ length: 19 }, (_, ry) => (
-                      <tr key={ry}>
-                        {/* 縦ヘッダ：1..19 */}
-                        <th
-                          className="border border-gray-700 text-xs font-medium text-gray-300 text-center"
-                          style={{ width: CELL_PX, height: CELL_PX }}
-                        >
-                          {ry + 1}
-                        </th>
-
-                        {/* セル本体（従来の19個） */}
-                        {Array.from({ length: 19 }, (_, cx) => {
-                          const key = cellKey(cx, ry);
-                          const cids = occupiedMap.get(key) ?? [];
-                          const bg =
-                            cids.length === 1
-                              ? isSummonId(cids[0])
-                                ? summonColor(cids[0]) + "88"
-                                : slotColor(cids[0]) + "88"
-                              : cids.length > 1
-                              ? "#9ca3af"
-                              : "#f3f4f6";
-
-                          return (
-                            <td
-                              key={cx}
-                              onClick={() => {
-                                if (isBossCell(cx, ry)) return;
-
-                                if (
-                                  cids.length === 1 &&
-                                  cids[0] !== activeActorId
-                                ) {
-                                  setActiveActorId(cids[0]);
-                                  return;
-                                }
-
-                                if (!activeActorId && cids.length >= 1) {
-                                  setActiveActorId(cids[0]);
-                                  return;
-                                }
-
-                                if (activeActorId) placeActiveChar(cx, ry);
-                              }}
-                              className={`align-top ${
-                                isBossCell(cx, ry)
-                                  ? "cursor-not-allowed"
-                                  : "cursor-pointer"
-                              } rounded-none p-0 border border-gray-700 text-[14px] leading-tight select-none`}
-                              style={{
-                                width: CELL_PX,
-                                height: CELL_PX,
-                                background: isBossCell(cx, ry) ? "#d1d5db" : bg,
-                              }}
-                              role="button"
-                              title={
-                                isBossCell(cx, ry)
-                                  ? "ボス領域（配置不可）"
-                                  : activeActorId
-                                  ? "クリックで配置"
-                                  : cids[0]
-                                  ? isSummonId(cids[0])
-                                    ? `クリックで ${aliasForSummon(
-                                        tl.summons?.find(
-                                          (s) => (s.id as string) === cids[0]
-                                        )?.name
-                                      )} を選択`
-                                    : `クリックで ${aliasForName(
-                                        tl.characters?.find(
-                                          (s) => (s.id as string) === cids[0]
-                                        )?.name
-                                      )} を選択`
-                                  : "クリックで選択"
-                              }
-                            >
-                              {/* 中央表示＆折返し（長い別名対策） */}
-                              <div className="w-full h-full flex items-center justify-center px-1">
-                                {cids.map((cid) => {
-                                  const isSummon = isSummonId
-                                    ? isSummonId(cid)
-                                    : cid.startsWith("s");
-                                  if (isSummon) {
-                                    const s = tl.summons?.find(
-                                      (ss) => ss.id === cid
-                                    );
-                                    if (!s) return null; // ← 孤児は描かない
-                                    return (
-                                      <div
-                                        key={cid}
-                                        className="text-center break-all leading-tight"
-                                      >
-                                        {aliasForSummon(s.name)}
-                                      </div>
-                                    );
-                                  } else {
-                                    const ch = tl.characters.find(
-                                      (c) => c.id === cid
-                                    );
-                                    if (!ch) return null; // ← 念のため
-                                    return (
-                                      <div
-                                        key={cid}
-                                        className="text-center break-all leading-tight"
-                                      >
-                                        {aliasForName(ch.name)}
-                                      </div>
-                                    );
-                                  }
-                                })}
-                              </div>
-                            </td>
-                          );
-                        })}
+                        />
+                        {/* 横ヘッダ（列数に追従） */}
+                        {Array.from({ length: tl.grid.cols }, (_, cx) => (
+                          <th
+                            key={cx}
+                            className="border border-gray-700 text-xs font-medium text-gray-300 text-center"
+                            style={{ width: CELL_PX, height: CELL_PX }}
+                          >
+                            {alphaLabel(cx)}
+                          </th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+
+                    <tbody>
+                      {Array.from({ length: tl.grid.rows }, (_, ry) => (
+                        <tr key={ry}>
+                          {/* 縦ヘッダ */}
+                          <th
+                            className="border border-gray-700 text-xs font-medium text-gray-300 text-center"
+                            style={{ width: CELL_PX, height: CELL_PX }}
+                          >
+                            {ry + 1}
+                          </th>
+
+                          {/* セル本体（従来の19個） */}
+                          {Array.from({ length: tl.grid.cols }, (_, cx) => {
+                            const key = cellKey(cx, ry);
+                            const cids = occupiedMap.get(key) ?? [];
+                            const bg =
+                              cids.length === 1
+                                ? isSummonId(cids[0])
+                                  ? summonColor(cids[0]) + "88"
+                                  : slotColor(cids[0]) + "88"
+                                : cids.length > 1
+                                ? "#9ca3af"
+                                : "#f3f4f6";
+
+                            return (
+                              <td
+                                key={cx}
+                                onClick={() => {
+                                  if (isBossCell(cx, ry)) return;
+
+                                  if (
+                                    cids.length === 1 &&
+                                    cids[0] !== activeActorId
+                                  ) {
+                                    setActiveActorId(cids[0]);
+                                    return;
+                                  }
+
+                                  if (!activeActorId && cids.length >= 1) {
+                                    setActiveActorId(cids[0]);
+                                    return;
+                                  }
+
+                                  if (activeActorId) placeActiveChar(cx, ry);
+                                }}
+                                className={`align-top ${
+                                  isBossCell(cx, ry)
+                                    ? "cursor-not-allowed"
+                                    : "cursor-pointer"
+                                } rounded-none p-0 border border-gray-700 text-[14px] leading-tight select-none`}
+                                style={{
+                                  width: CELL_PX,
+                                  height: CELL_PX,
+                                  background: isBossCell(cx, ry)
+                                    ? "#d1d5db"
+                                    : bg,
+                                }}
+                                role="button"
+                                title={
+                                  isBossCell(cx, ry)
+                                    ? "ボス領域（配置不可）"
+                                    : activeActorId
+                                    ? "クリックで配置"
+                                    : cids[0]
+                                    ? isSummonId(cids[0])
+                                      ? `クリックで ${aliasForSummon(
+                                          tl.summons?.find(
+                                            (s) => (s.id as string) === cids[0]
+                                          )?.name
+                                        )} を選択`
+                                      : `クリックで ${aliasForName(
+                                          tl.characters?.find(
+                                            (s) => (s.id as string) === cids[0]
+                                          )?.name
+                                        )} を選択`
+                                    : "クリックで選択"
+                                }
+                              >
+                                {/* 中央表示＆折返し（長い別名対策） */}
+                                <div className="w-full h-full flex items-center justify-center px-1">
+                                  {cids.map((cid) => {
+                                    const isSummon = isSummonId
+                                      ? isSummonId(cid)
+                                      : cid.startsWith("s");
+                                    if (isSummon) {
+                                      const s = tl.summons?.find(
+                                        (ss) => ss.id === cid
+                                      );
+                                      if (!s) return null; // ← 孤児は描かない
+                                      return (
+                                        <div
+                                          key={cid}
+                                          className="text-center break-all leading-tight"
+                                        >
+                                          {aliasForSummon(s.name)}
+                                        </div>
+                                      );
+                                    } else {
+                                      const ch = tl.characters.find(
+                                        (c) => c.id === cid
+                                      );
+                                      if (!ch) return null; // ← 念のため
+                                      return (
+                                        <div
+                                          key={cid}
+                                          className="text-center break-all leading-tight"
+                                        >
+                                          {aliasForName(ch.name)}
+                                        </div>
+                                      );
+                                    }
+                                  })}
+                                </div>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </section>
