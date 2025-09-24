@@ -698,6 +698,18 @@ export default function App() {
                           ))}
                         </select>
                       </label>
+                      {/* 選択ボタン */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveActorId(c.id);
+                        }}
+                        aria-pressed={activeActorId === c.id}
+                        className={`ml-auto px-2 py-1 text-xs rounded border bg-white text-gray-900 border-gray-300 hover:bg-gray-100'}`}
+                        title="このキャラを選択"
+                      >
+                        キャラ選択
+                      </button>
                     </div>
                     {/* 表示名（グリッド用：固定） */}
                     <div className="flex items-center gap-2 mb-3">
