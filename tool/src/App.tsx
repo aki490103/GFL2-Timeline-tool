@@ -238,8 +238,8 @@ const aliasForSummon = (name: string | undefined) =>
 // アクター識別（キャラ or 召喚物）
 const isSummonId = (id: string) => id.startsWith("s");
 
-const weaponNamesForType = (ctype?: string) =>
-  WEAPON_OPTIONS.filter((w) => !ctype || w.type === ctype).map((w) => w.name);
+// const weaponNamesForType = (ctype?: string) =>
+//   WEAPON_OPTIONS.filter((w) => !ctype || w.type === ctype).map((w) => w.name);
 
 const getCharOption = (name: string): CharacterOption | undefined =>
   CHARACTER_OPTIONS.find((o) => o.name === name);
@@ -684,7 +684,7 @@ export default function App() {
                             const currentWeapon = c.equipment.weapon ?? "";
                             const weapon = allowed.includes(currentWeapon)
                               ? currentWeapon
-                              : allowed[0] ?? "";
+                              : "";
                             setTl((prev) => ({
                               ...prev,
                               characters: prev.characters.map((cc) =>
@@ -777,7 +777,7 @@ export default function App() {
                           {(() => {
                             const hasChar = !!c.name;
                             const allowed = hasChar
-                              ? weaponNamesForType(c.ctype)
+                              ? sortedWeaponNamesForType(c.ctype)
                               : [];
                             const value =
                               hasChar &&
