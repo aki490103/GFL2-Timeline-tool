@@ -333,6 +333,19 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "事前調査",
     ],
   },
+  {
+    name: "絳雨",
+    yomi: "コウウ",
+    type: "AR",
+    uniqueKeyOptions: [
+      "ムードメーカー",
+      "奇策逆転",
+      "抑えきれぬ行動力",
+      "一意専心",
+      "早い者勝ち",
+      "余裕の一手",
+    ],
+  },
   // SRキャラ
   {
     name: "グローザ",
