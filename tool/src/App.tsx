@@ -10,6 +10,7 @@ import { SUMMON_OPTIONS, type SummonOption } from "./data/summons";
 // 型定義
 // ===============================
 type Grid = { cols: number; rows: number };
+type BossArea = { x: number; y: number; w: number; h: number };
 type Position = { x: number; y: number };
 type Summon = { id: string; name: string; alias?: string };
 
@@ -46,6 +47,7 @@ type TimelineV1 = {
   v: 1;
   title?: string;
   grid: Grid;
+  boss?: BossArea;
   characters: Character[];
   summons: Summon[];
   prep: Turn;
@@ -71,7 +73,8 @@ const createTurn = (i: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7): Turn => ({
 const makeDefaultTL = (): TimelineV1 => ({
   v: 1,
   title: "新規TL",
-  grid: { cols: 19, rows: 19 },
+  grid: defaultGrid,
+  boss: defaultBoss(defaultGrid),
   characters: [
     {
       id: "c1",
@@ -144,8 +147,8 @@ const b64u = {
 const encodeTL = (tl: TimelineV1) => {
   const json = JSON.stringify(tl);
   const utf8 = new TextEncoder().encode(json);
-  const z = deflate(utf8); 
-  return "v1:" + b64u.enc(z); 
+  const z = deflate(utf8);
+  return "v1:" + b64u.enc(z);
 };
 
 const decodeTL = (hash: string): TimelineV1 | null => {
@@ -178,14 +181,25 @@ const decodeTL = (hash: string): TimelineV1 | null => {
 // };
 
 const cellKey = (x: number, y: number) => `${x},${y}`;
-const isBossCell = (x: number, y: number) =>
-  x >= 8 && x <= 10 && y >= 8 && y <= 10;
+const defaultGrid = { cols: 19, rows: 19 };
+const defaultBoss = (g: Grid): BossArea => {
+  // 盤中央 3×3（奇数グリッド想定）
+  const startX = Math.floor(g.cols / 2) - 1;
+  const startY = Math.floor(g.rows / 2) - 1;
+  return { x: Math.max(0, startX), y: Math.max(0, startY), w: 3, h: 3 };
+};
 const TURNS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
 const CELL_PX = 55;
-const COL_LABELS = Array.from(
-  { length: 19 },
-  (_, i) => String.fromCharCode(65 + i) // 65='A'
-);
+const DESKTOP_MIN_PX = 1280;
+const alphaLabel = (n: number) => {
+  let s = "";
+  let x = n;
+  while (x >= 0) {
+    s = String.fromCharCode(65 + (x % 26)) + s; // 65 = 'A'
+    x = Math.floor(x / 26) - 1;
+  }
+  return s;
+};
 
 const SLOT_COLORS: Record<string, string> = {
   c1: "#ef4444", // 赤
@@ -218,20 +232,21 @@ const summonColor = (sid: string) => {
 
 const getSummonOption = (name: string): SummonOption | undefined =>
   SUMMON_OPTIONS.find((o) => o.name === name);
-const aliasForSummon = (name: string) => getSummonOption(name)?.alias ?? name;
+const aliasForSummon = (name: string | undefined) =>
+  name ? getSummonOption(name)?.alias ?? name : "";
 
 // アクター識別（キャラ or 召喚物）
 const isSummonId = (id: string) => id.startsWith("s");
 
-const weaponNamesForType = (ctype?: string) =>
-  WEAPON_OPTIONS.filter((w) => !ctype || w.type === ctype).map((w) => w.name);
+// const weaponNamesForType = (ctype?: string) =>
+//   WEAPON_OPTIONS.filter((w) => !ctype || w.type === ctype).map((w) => w.name);
 
 const getCharOption = (name: string): CharacterOption | undefined =>
   CHARACTER_OPTIONS.find((o) => o.name === name);
 
 // グリッド等で表示する別名は候補リスト由来で固定
-const aliasForName = (name: string): string =>
-  getCharOption(name)?.alias ?? name;
+const aliasForName = (name: string | undefined): string =>
+  name ? getCharOption(name)?.alias ?? name : "";
 
 const uniqueKeyOptionsForName = (name: string): string[] =>
   getCharOption(name)?.uniqueKeyOptions ?? [];
@@ -283,7 +298,8 @@ export default function App() {
 
   const [tl, setTl] = useState<TimelineV1>(() => {
     const restored = decodeTL(location.hash);
-    return restored ?? makeDefaultTL();
+    const base = restored ?? makeDefaultTL();
+    return base.boss ? base : { ...base, boss: defaultBoss(base.grid) };
   });
 
   const turn = useMemo(() => {
@@ -302,6 +318,11 @@ export default function App() {
     return idx === 0
       ? next.prep
       : next.turns[(idx - 1) as 0 | 1 | 2 | 3 | 4 | 5 | 6];
+  };
+
+  const isBossCell = (x: number, y: number) => {
+    const b = tl.boss ?? defaultBoss(tl.grid);
+    return x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h;
   };
 
   // ==== TLキャッシュ ====
@@ -408,7 +429,12 @@ export default function App() {
   useEffect(() => {
     const onHash = () => {
       const restored = decodeTL(location.hash);
-      if (restored) setTl(restored);
+      if (restored) {
+        setTl(() => {
+          const base = restored;
+          return base.boss ? base : { ...base, boss: defaultBoss(base.grid) }; // ★ 補完
+        });
+      }
     };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
@@ -544,252 +570,238 @@ export default function App() {
 
   return (
     <div className="min-h-screen p-6 bg-[#202124] text-[#e8eaed]">
-      <div className="max-w-6xl mx-auto space-y-6">
-        {/* ヘッダ */}
-        <header className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold tracking-wide">
-            ドールズフロントライン2 編成・TL共有ツール（β版）
-          </h1>
-          <span className="text-xs text-gray-400">v0.0.1</span>
-        </header>
+      <div className="w-full overflow-x-auto">
+        <div
+          className="max-w-6xl mx-auto space-y-6"
+          style={{ minWidth: DESKTOP_MIN_PX }}
+        >
+          {/* ヘッダ */}
+          <header className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold tracking-wide">
+              ドールズフロントライン2 編成・TL共有ツール（β版）
+            </h1>
+            <span className="text-xs text-gray-400">v0.0.1</span>
+          </header>
 
-        
-        {/* 注意 */}
-        <section className="text-sm text-white">
-          <ul className="list-disc ml-5 mt-1">
-            これはドールズフロントライン2の塵煙前線においてチームへ編成やTLなどを共有する目的で作られたものです<br/>
-            本ツールは日本鯖のチーム「漆黒の宴」が作成、管理しています
-          </ul>
-        </section>
+          {/* 注意 */}
+          <section className="text-sm text-white">
+            <ul className="list-disc ml-5 mt-1">
+              これはドールズフロントライン2の塵煙前線においてチームへ編成やTLなどを共有する目的で作られたものです
+              <br />
+              本ツールは日本鯖のチーム「漆黒の宴」が作成、管理しています
+            </ul>
+          </section>
 
-        {/* 使い方（折りたたみ） */}
-        <section className="bg-[#2b2c2f] rounded-xl shadow p-4">
-          <div className="flex items-center gap-3">
-            <h2 className="font-semibold">使い方</h2>
-            <button
-              className="ml-auto px-3 py-1 text-sm border rounded hover:bg-[#33353a] border-gray-600"
-              onClick={() => setShowUsage((v) => !v)}
-            >
-              {showUsage ? "閉じる" : "開く"}
-            </button>
-          </div>
-
-          {showUsage && (
-            <div className="mt-3 text-sm text-white space-y-2">
-              <p>
-                1. 編成カードのキャラ名をプルダウンから選択<br/>
-                2. 武器や固有キーが絞り込まれるので情報を入力していく<br/>
-                3. 編成カードの背景を選択<br/>
-                4. ターンごとにキャラを配置<br/>
-                5. キャラごとの行動順を入力<br/>
-              </p>
-              <p></p>
-              <p>
-                <strong>共有方法</strong><br/>
-                1. 画面下部の「保存・共有」でタイトルを入力しURL生成<br/>
-                2. 自動的にURLがコピーされるので相手に共有
-              </p>
-              <p></p>
-              <p>
-                <strong>その他</strong><br/>
-                ・キャラの配置が重要でない場合は配置場所を折りたたんで使用してください<br/>
-                ・ニキータやアンドリスなどの何かを召喚するキャラの場合は召喚物をご利用ください（最大10個まで配置可）<br/>
-                ・共有せずに保存だけ行いたい場合は画面下部で「保存（ブラウザ）」を選択するとキャッシュに保存されます<br/>
-                ・URLに編成のハッシュを埋め込ませる関係上URLが長くなります。もし文字数制限で共有できない場合は外部の短縮URLなどをご利用ください
-              </p>
+          {/* 使い方（折りたたみ） */}
+          <section className="bg-[#2b2c2f] rounded-xl shadow p-4">
+            <div className="flex items-center gap-3">
+              <h2 className="font-semibold">使い方</h2>
+              <button
+                className="ml-auto px-3 py-1 text-sm border rounded hover:bg-[#33353a] border-gray-600"
+                onClick={() => setShowUsage((v) => !v)}
+              >
+                {showUsage ? "閉じる" : "開く"}
+              </button>
             </div>
-          )}
-        </section>
 
-        {/* 編成 */}
-        <section className="bg-[#33353a] border-gray-600 rounded-xl shadow p-4">
-          <div className="flex items-center gap-3 mb-3">
-            <h2 className="font-semibold">編成</h2>
-            <button
-              className="ml-auto px-3 py-1 text-sm border rounded hover:bg-[#33353a] border-gray-600"
-              onClick={() => setShowRoster((v) => !v)}
-            >
-              {showRoster ? "折りたたみ" : "展開"}
-            </button>
-          </div>
+            {showUsage && (
+              <div className="mt-3 text-sm text-white space-y-2">
+                <p>
+                  1. 編成カードのキャラ名をプルダウンから選択
+                  <br />
+                  2. 武器や固有キーが絞り込まれるので情報を入力していく
+                  <br />
+                  3. 編成カードの背景、もしくは「キャラ配置」ボタンをクリック
+                  <br />
+                  4. マス目にキャラを配置
+                  <br />
+                  5. キャラごとの行動順を入力
+                  <br />
+                </p>
+                <p></p>
+                <p>
+                  <strong>キャラの配置について</strong>
+                  <br />
+                  一度キャラを配置した後はキャラのマスをクリックすることでそのキャラを選択し移動することができます
+                  <br />
+                  次のターンにキャラを配置したい場合は「前ターンからコピー」ボタンをクリックした後、次のターンでキャラを移動することで素早く配置することが可能です
+                </p>
+                <p></p>
+                <p>
+                  <strong>共有方法</strong>
+                  <br />
+                  1. 画面下部の「保存・共有」でタイトルを入力しURL生成
+                  <br />
+                  2. 自動的にURLがコピーされるので相手に共有
+                </p>
+                <p></p>
+                <p>
+                  <strong>その他</strong>
+                  <br />
+                  ・キャラの配置が重要でない場合は配置場所を折りたたんで使用してください
+                  <br />
+                  ・ニキータやアンドリスなどの何かを召喚するキャラの場合は召喚物をご利用ください（最大10個まで配置可）
+                  <br />
+                  ・共有せずに保存だけ行いたい場合は画面下部で「保存（ブラウザ）」を選択するとブラウザのキャッシュに保存されます（cookieのクリアなどに注意）
+                  <br />
+                  ・URLに編成のハッシュを埋め込ませる関係上URLが長くなります。もし文字数制限で共有できない場合は外部の短縮URLなどをご利用ください
+                  <br />※
+                  Xなど文字数制限があるものを除き、文字に対するリンク埋め込み機能でも共有可能です（discordでは「[埋め込みたい文字](URL)」
+                </p>
+              </div>
+            )}
+          </section>
 
-          {showRoster && (
-            <div className="grid grid-cols-1 gap-4">
-              {tl.characters.map((c) => (
-                <div
-                  key={c.id}
-                  onClick={(e) => onCardClick(e, c.id)}
-                  className={`rounded-xl p-4 border select-none cursor-pointer transition
+          {/* 編成 */}
+          <section className="bg-[#33353a] border-gray-600 rounded-xl shadow p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <h2 className="font-semibold">編成</h2>
+              <button
+                className="ml-auto px-3 py-1 text-sm border rounded hover:bg-[#33353a] border-gray-600"
+                onClick={() => setShowRoster((v) => !v)}
+              >
+                {showRoster ? "折りたたみ" : "展開"}
+              </button>
+            </div>
+
+            {showRoster && (
+              <div className="grid grid-cols-1 gap-4">
+                {tl.characters.map((c) => (
+                  <div
+                    key={c.id}
+                    onClick={(e) => onCardClick(e, c.id)}
+                    className={`rounded-xl p-4 border select-none cursor-pointer transition
                     ${activeActorId === c.id ? "ring-2 ring-blue-500" : ""}`}
-                  style={{
-                    background:
-                      activeActorId === c.id
-                        ? slotColor(c.id) + "88"
-                        : slotColor(c.id) + "66",
-                  }}
-                >
-                  <div className="flex items-center gap-3 mb-3">
-                    {/* キャラ名（固定リスト） */}
-                    <label className="flex items-center gap-2">
-                      <span className="w-16 text-white text-sm">キャラ名</span>
-                      <select
-                        value={c.name ?? ""}
-                        onChange={(e) => {
-                          const selected = e.target.value;
-                          const opt = getCharOption(selected);
-                          const allowed = sortedWeaponNamesForType(c.ctype);
-                          const currentWeapon = c.equipment.weapon ?? "";
-                          const weapon = allowed.includes(currentWeapon)
-                            ? currentWeapon
-                            : allowed[0] ?? "";
-                          setTl((prev) => ({
-                            ...prev,
-                            characters: prev.characters.map((cc) =>
-                              cc.id === c.id
-                                ? {
-                                    ...cc,
-                                    name: selected,
-                                    alias: aliasForName(selected),
-                                    ctype: opt?.type,
-                                    equipment: {
-                                      ...cc.equipment,
-                                      weapon,
-                                      uniqueKeysSet: sanitizeUniqueKeys(
-                                        selected,
-                                        cc.equipment.uniqueKeySet
-                                      ),
-                                      commonKeySet: sanitizeCommonKeys(
-                                        cc.equipment.commonKeySet
-                                      ),
-                                    },
-                                  }
-                                : cc
-                            ),
-                          }));
-                        }}
-                        className="min-w-[12rem] px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
-                      >
-                        <option value="" disabled>
-                          選択
-                        </option>
-                        {sortedCharacterOptions.map((o) => (
-                          <option key={o.name} value={o.name}>
-                            {o.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
-                  {/* 表示名（グリッド用：固定） */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="w-16 text-white text-sm">表示名</span>
-                    <div className="px-2 py-1 border rounded bg-white border-gray-300 text-sm min-w-[12rem]">
-                      {c.name ? (
-                        <span className="text-gray-900">
-                          {aliasForName(c.name)}
+                    style={{
+                      background:
+                        activeActorId === c.id
+                          ? slotColor(c.id) + "88"
+                          : slotColor(c.id) + "66",
+                    }}
+                  >
+                    <div className="flex items-center gap-3 mb-3">
+                      {/* キャラ名（固定リスト） */}
+                      <label className="flex items-center gap-2">
+                        <span className="w-16 text-white text-sm">
+                          キャラ名
                         </span>
-                      ) : (
-                        <span className="text-gray-400">未選択</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* 装備（武器：固定リスト） */}
-                  <div className="grid sm:grid-cols-2 gap-3 text-sm">
-                    <label className="flex items-center gap-2">
-                      <span className="w-16 text-white">凸</span>
-                      <input
-                        type="number"
-                        min={0}
-                        max={6}
-                        value={c.equipment.limitBreak}
-                        onChange={(e) =>
-                          setCharacterEquip(c.id, {
-                            limitBreak: +e.target.value,
-                          })
-                        }
-                        className="w-24 px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
-                      />
-                    </label>
-
-                    <label className="flex items-center gap-2">
-                      <span className="w-16 text-white">武器</span>
-                      <div className="min-w-[12rem]">
-                        <div className="text-xs text-white/80 mb-1 leading-none h-4">
-                          {/* c.ctype が無い場合は「タイプ:」だけ表示 */}
-                          タイプ{c.ctype ? `: ${c.ctype}` : ":"}
-                        </div>
-                        {(() => {
-                          const hasChar = !!c.name;
-                          const allowed = hasChar
-                            ? weaponNamesForType(c.ctype)
-                            : [];
-                          const value =
-                            hasChar &&
-                            allowed.includes(c.equipment.weapon ?? "")
-                              ? c.equipment.weapon ?? ""
+                        <select
+                          value={c.name ?? ""}
+                          onChange={(e) => {
+                            const selected = e.target.value;
+                            const opt = getCharOption(selected);
+                            const allowed = sortedWeaponNamesForType(c.ctype);
+                            const currentWeapon = c.equipment.weapon ?? "";
+                            const weapon = allowed.includes(currentWeapon)
+                              ? currentWeapon
                               : "";
-                          return (
-                            <select
-                              value={value}
-                              onChange={(e) =>
-                                setCharacterEquip(c.id, {
-                                  weapon: e.target.value,
-                                })
-                              }
-                              disabled={!hasChar}
-                              className={`min-w-[12rem] px-2 py-1 border rounded bg-white border-gray-300 ${
-                                hasChar ? "text-gray-900" : "text-gray-400"
-                              }`}
-                            >
-                              <option value="">
-                                {hasChar ? "選択" : "（キャラ未選択）"}
-                              </option>
-                              {hasChar &&
-                                allowed.map((w) => (
-                                  <option key={w} value={w}>
-                                    {w}
-                                  </option>
-                                ))}
-                            </select>
-                          );
-                        })()}
+                            setTl((prev) => ({
+                              ...prev,
+                              characters: prev.characters.map((cc) =>
+                                cc.id === c.id
+                                  ? {
+                                      ...cc,
+                                      name: selected,
+                                      alias: aliasForName(selected),
+                                      ctype: opt?.type,
+                                      equipment: {
+                                        ...cc.equipment,
+                                        weapon,
+                                        uniqueKeySet: sanitizeUniqueKeys(
+                                          selected,
+                                          cc.equipment.uniqueKeySet
+                                        ),
+                                        commonKeySet: sanitizeCommonKeys(
+                                          cc.equipment.commonKeySet
+                                        ),
+                                      },
+                                    }
+                                  : cc
+                              ),
+                            }));
+                          }}
+                          className="min-w-[12rem] px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
+                        >
+                          <option value="" disabled>
+                            選択
+                          </option>
+                          {sortedCharacterOptions.map((o) => (
+                            <option key={o.name} value={o.name}>
+                              {o.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      {/* 配置ボタン */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveActorId(c.id);
+                        }}
+                        aria-pressed={activeActorId === c.id}
+                        className={`ml-auto px-2 py-1 text-xs rounded border bg-white text-gray-900 border-gray-300 hover:bg-gray-100'}`}
+                        title="このキャラを配置"
+                      >
+                        キャラ配置
+                      </button>
+                    </div>
+                    {/* 表示名（グリッド用：固定） */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="w-16 text-white text-sm">表示名</span>
+                      <div className="px-2 py-1 border rounded bg-white border-gray-300 text-sm min-w-[12rem]">
+                        {c.name ? (
+                          <span className="text-gray-900">
+                            {aliasForName(c.name)}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">未選択</span>
+                        )}
                       </div>
-                    </label>
+                    </div>
 
-                    <div className="sm:col-span-2 grid gap-2">
-                      <div>
-                        <span className="text-white mr-2">固有キー</span>
-                        <div className="grid grid-cols-3 gap-2 mt-1">
-                          {([0, 1, 2] as const).map((i) => {
+                    {/* 装備（武器：固定リスト） */}
+                    <div className="grid sm:grid-cols-2 gap-3 text-sm">
+                      <label className="flex items-center gap-2">
+                        <span className="w-16 text-white">凸</span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={6}
+                          value={c.equipment.limitBreak}
+                          onChange={(e) =>
+                            setCharacterEquip(c.id, {
+                              limitBreak: +e.target.value,
+                            })
+                          }
+                          className="w-24 px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
+                        />
+                      </label>
+
+                      <label className="flex items-center gap-2">
+                        <span className="w-16 text-white">武器</span>
+                        <div className="min-w-[12rem]">
+                          <div className="text-xs text-white/80 mb-1 leading-none h-4">
+                            {/* c.ctype が無い場合は「タイプ:」だけ表示 */}
+                            タイプ{c.ctype ? `: ${c.ctype}` : ":"}
+                          </div>
+                          {(() => {
                             const hasChar = !!c.name;
-                            const options = hasChar
-                              ? uniqueKeyOptionsForName(c.name)
+                            const allowed = hasChar
+                              ? sortedWeaponNamesForType(c.ctype)
                               : [];
-                            const value = c.equipment.uniqueKeySet[i] ?? "";
-                            const onChange = (
-                              e: React.ChangeEvent<HTMLSelectElement>
-                            ) => {
-                              const v = e.target.value || undefined;
-                              const arr = [...c.equipment.uniqueKeySet] as [
-                                string?,
-                                string?,
-                                string?
-                              ];
-                              arr[i] = v;
-                              setCharacterEquip(c.id, {
-                                uniqueKeySet: sanitizeUniqueKeys(c.name, arr),
-                              });
-                            };
+                            const value =
+                              hasChar &&
+                              allowed.includes(c.equipment.weapon ?? "")
+                                ? c.equipment.weapon ?? ""
+                                : "";
                             return (
                               <select
-                                key={i}
-                                value={
-                                  hasChar && options.includes(value)
-                                    ? (value as string)
-                                    : ""
+                                value={value}
+                                onChange={(e) =>
+                                  setCharacterEquip(c.id, {
+                                    weapon: e.target.value,
+                                  })
                                 }
-                                onChange={onChange}
                                 disabled={!hasChar}
                                 className={`min-w-[12rem] px-2 py-1 border rounded bg-white border-gray-300 ${
                                   hasChar ? "text-gray-900" : "text-gray-400"
@@ -799,541 +811,788 @@ export default function App() {
                                   {hasChar ? "選択" : "（キャラ未選択）"}
                                 </option>
                                 {hasChar &&
-                                  options.map((opt) => (
-                                    <option key={opt} value={opt}>
-                                      {opt}
+                                  allowed.map((w) => (
+                                    <option key={w} value={w}>
+                                      {w}
                                     </option>
                                   ))}
                               </select>
                             );
-                          })}
+                          })()}
                         </div>
-                      </div>
-                      <div>
-                        <span className="text-white mr-2">共通キー</span>
-                        <div className="grid grid-cols-3 gap-2 mt-1">
-                          {([0, 1, 2] as const).map((i) => {
-                            const hasChar = !!c.name;
-                            const options = hasChar ? COMMON_KEY_OPTIONS : [];
-                            const value = c.equipment.commonKeySet[i] ?? "";
-                            const onChange = (
-                              e: React.ChangeEvent<HTMLSelectElement>
-                            ) => {
-                              const v = e.target.value || undefined;
-                              const arr = [...c.equipment.commonKeySet] as [
-                                string?,
-                                string?,
-                                string?
-                              ];
-                              arr[i] = v;
-                              setCharacterEquip(c.id, {
-                                commonKeySet: sanitizeCommonKeys(arr),
-                              });
-                            };
-                            return (
-                              <select
-                                key={i}
-                                value={
-                                  hasChar && options.includes(value)
-                                    ? (value as string)
-                                    : ""
-                                }
-                                onChange={onChange}
-                                disabled={!hasChar}
-                                className={`min-w-[12rem] px-2 py-1 border rounded bg-white border-gray-300 ${
-                                  hasChar ? "text-gray-900" : "text-gray-400"
-                                }`}
-                              >
-                                <option value="">
-                                  {hasChar ? "選択" : "（キャラ未選択）"}
-                                </option>
-                                {hasChar &&
-                                  options.map((opt) => (
-                                    <option key={opt} value={opt}>
-                                      {opt}
-                                    </option>
-                                  ))}
-                              </select>
-                            );
-                          })}
+                      </label>
+
+                      <div className="sm:col-span-2 grid gap-2">
+                        <div>
+                          <span className="text-white mr-2">固有キー</span>
+                          <div className="grid grid-cols-3 gap-2 mt-1">
+                            {([0, 1, 2] as const).map((i) => {
+                              const hasChar = !!c.name;
+                              const options = hasChar
+                                ? uniqueKeyOptionsForName(c.name)
+                                : [];
+                              const value = c.equipment.uniqueKeySet[i] ?? "";
+                              const onChange = (
+                                e: React.ChangeEvent<HTMLSelectElement>
+                              ) => {
+                                const v = e.target.value || undefined;
+                                const arr = [...c.equipment.uniqueKeySet] as [
+                                  string?,
+                                  string?,
+                                  string?
+                                ];
+                                arr[i] = v;
+                                setCharacterEquip(c.id, {
+                                  uniqueKeySet: sanitizeUniqueKeys(c.name, arr),
+                                });
+                              };
+                              return (
+                                <select
+                                  key={i}
+                                  value={
+                                    hasChar && options.includes(value)
+                                      ? (value as string)
+                                      : ""
+                                  }
+                                  onChange={onChange}
+                                  disabled={!hasChar}
+                                  className={`min-w-[12rem] px-2 py-1 border rounded bg-white border-gray-300 ${
+                                    hasChar ? "text-gray-900" : "text-gray-400"
+                                  }`}
+                                >
+                                  <option value="">
+                                    {hasChar ? "選択" : "（キャラ未選択）"}
+                                  </option>
+                                  {hasChar &&
+                                    options.map((opt) => (
+                                      <option key={opt} value={opt}>
+                                        {opt}
+                                      </option>
+                                    ))}
+                                </select>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-white mr-2">共通キー</span>
+                          <div className="grid grid-cols-3 gap-2 mt-1">
+                            {([0, 1, 2] as const).map((i) => {
+                              const hasChar = !!c.name;
+                              const options = hasChar ? COMMON_KEY_OPTIONS : [];
+                              const value = c.equipment.commonKeySet[i] ?? "";
+                              const onChange = (
+                                e: React.ChangeEvent<HTMLSelectElement>
+                              ) => {
+                                const v = e.target.value || undefined;
+                                const arr = [...c.equipment.commonKeySet] as [
+                                  string?,
+                                  string?,
+                                  string?
+                                ];
+                                arr[i] = v;
+                                setCharacterEquip(c.id, {
+                                  commonKeySet: sanitizeCommonKeys(arr),
+                                });
+                              };
+                              return (
+                                <select
+                                  key={i}
+                                  value={
+                                    hasChar && options.includes(value)
+                                      ? (value as string)
+                                      : ""
+                                  }
+                                  onChange={onChange}
+                                  disabled={!hasChar}
+                                  className={`min-w-[12rem] px-2 py-1 border rounded bg-white border-gray-300 ${
+                                    hasChar ? "text-gray-900" : "text-gray-400"
+                                  }`}
+                                >
+                                  <option value="">
+                                    {hasChar ? "選択" : "（キャラ未選択）"}
+                                  </option>
+                                  {hasChar &&
+                                    options.map((opt) => (
+                                      <option key={opt} value={opt}>
+                                        {opt}
+                                      </option>
+                                    ))}
+                                </select>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* 召喚物（最大10） */}
+          <section className="bg-[#33353a] border-gray-600 rounded-xl shadow p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <h2 className="font-semibold">召喚物</h2>
+              <button
+                onClick={() =>
+                  setTl((prev) => {
+                    if (prev.summons.length >= 10) {
+                      alert("召喚物は最大10個までです");
+                      return prev;
+                    }
+                    const next = structuredClone(prev) as TimelineV1;
+                    const id = `s${next.summons.length + 1}`;
+                    // デフォはリストの先頭
+                    const def = SUMMON_OPTIONS[0]?.name ?? "召喚物";
+                    next.summons.push({
+                      id,
+                      name: def,
+                      alias: aliasForSummon(def),
+                    });
+                    const r = renumberSummons(
+                      next,
+                      /* 現在の選択ID */ activeActorId ?? null
+                    );
+                    if (r.newActiveId !== (activeActorId ?? null))
+                      setActiveActorId(r.newActiveId ?? "c1");
+                    return r.next;
+                  })
+                }
+                className="ml-auto px-3 py-1 text-sm border rounded bg-white text-gray-900 border-gray-300 hover:bg-gray-100"
+              >
+                召喚物を追加
+              </button>
             </div>
-          )}
-        </section>
 
-        {/* 召喚物（最大10） */}
-        <section className="bg-[#33353a] border-gray-600 rounded-xl shadow p-4">
-          <div className="flex items-center gap-3 mb-3">
-            <h2 className="font-semibold">召喚物</h2>
-            <button
-              onClick={() =>
-                setTl((prev) => {
-                  if (prev.summons.length >= 10) {
-                    alert("召喚物は最大10個までです");
-                    return prev;
-                  }
-                  const next = structuredClone(prev) as TimelineV1;
-                  const id = `s${next.summons.length + 1}`;
-                  // デフォはリストの先頭
-                  const def = SUMMON_OPTIONS[0]?.name ?? "召喚物";
-                  next.summons.push({
-                    id,
-                    name: def,
-                    alias: aliasForSummon(def),
-                  });
-                  const r = renumberSummons(
-                    next,
-                    /* 現在の選択ID */ activeActorId ?? null
-                  );
-                  if (r.newActiveId !== (activeActorId ?? null))
-                    setActiveActorId(r.newActiveId ?? "c1");
-                  return r.next;
-                })
-              }
-              className="ml-auto px-3 py-1 text-sm border rounded bg-white text-gray-900 border-gray-300 hover:bg-gray-100"
-            >
-              召喚物を追加
-            </button>
-          </div>
-
-          {tl.summons.length === 0 ? (
-            <div className="text-sm text-gray-400">（まだありません）</div>
-          ) : (
-            <div className="grid grid-cols-1 gap-3">
-              {tl.summons.map((s) => (
-                <div
-                  key={s.id}
-                  onClick={(e) => {
-                    const t = e.target as HTMLElement;
-                    if (t.closest("input, select, button, textarea, label"))
-                      return;
-                    setActiveActorId(s.id);
-                  }}
-                  className={`rounded-xl p-3 border select-none cursor-pointer transition
+            {tl.summons.length === 0 ? (
+              <div className="text-sm text-gray-400">（まだありません）</div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3">
+                {tl.summons.map((s) => (
+                  <div
+                    key={s.id}
+                    onClick={(e) => {
+                      const t = e.target as HTMLElement;
+                      if (t.closest("input, select, button, textarea, label"))
+                        return;
+                      setActiveActorId(s.id);
+                    }}
+                    className={`rounded-xl p-3 border select-none cursor-pointer transition
                     ${activeActorId === s.id ? "ring-2 ring-blue-500" : ""}`}
-                  style={{
-                    background:
-                      activeActorId === s.id
-                        ? summonColor(s.id) + "66"
-                        : summonColor(s.id) + "44",
-                  }}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs px-2 py-0.5 rounded bg-white/80 text-gray-900">
-                      {s.id.toUpperCase()}
-                    </span>
+                    style={{
+                      background:
+                        activeActorId === s.id
+                          ? summonColor(s.id) + "66"
+                          : summonColor(s.id) + "44",
+                    }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs px-2 py-0.5 rounded bg-white/80 text-gray-900">
+                        {s.id.toUpperCase()}
+                      </span>
 
-                    <label className="flex items-center gap-2">
-                      <span className="w-16 text-white text-sm">名前</span>
-                      <select
-                        value={s.name}
-                        onChange={(e) =>
+                      <label className="flex items-center gap-2">
+                        <span className="w-16 text-white text-sm">名前</span>
+                        <select
+                          value={s.name}
+                          onChange={(e) =>
+                            setTl((prev) => {
+                              const next = structuredClone(prev) as TimelineV1;
+                              const value = e.target.value;
+                              next.summons = next.summons.map((x) =>
+                                x.id === s.id
+                                  ? {
+                                      ...x,
+                                      name: value,
+                                      alias: aliasForSummon(value),
+                                    }
+                                  : x
+                              );
+                              return next;
+                            })
+                          }
+                          className="min-w-[12rem] px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
+                        >
+                          {SUMMON_OPTIONS.map((o) => (
+                            <option key={o.name} value={o.name}>
+                              {o.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label className="flex items-center gap-2">
+                        <span className="w-16 text-white text-sm">表示名</span>
+                        <div className="px-2 py-1 border rounded bg-white text-gray-900 border-gray-300 text-sm min-w-[12rem]">
+                          {aliasForSummon(s.name)}
+                        </div>
+                      </label>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
                           setTl((prev) => {
                             const next = structuredClone(prev) as TimelineV1;
-                            const value = e.target.value;
-                            next.summons = next.summons.map((x) =>
-                              x.id === s.id
-                                ? {
-                                    ...x,
-                                    name: value,
-                                    alias: aliasForSummon(value),
-                                  }
-                                : x
+                            // ★ 全ターン（prep含む）から当該IDの配置を削除
+                            if (next.prep) {
+                              Object.keys(next.prep.placements).forEach((k) => {
+                                if (k === s.id) delete next.prep.placements[k];
+                              });
+                            }
+                            // この召喚物の配置も全ターンから除去
+                            next.turns.forEach((t) => {
+                              Object.keys(t.placements).forEach((k) => {
+                                if (k === s.id) delete t.placements[k];
+                              });
+                            });
+
+                            // 召喚物リストから除外
+                            next.summons = (next.summons ?? []).filter(
+                              (x) => x.id !== s.id
                             );
+                            pruneOrphanPlacements(next);
+
+                            // 採番し直し & 選択IDの追随
+                            const r = renumberSummons(
+                              next,
+                              activeActorId ?? null
+                            );
+                            if (r.newActiveId !== (activeActorId ?? null)) {
+                              setActiveActorId(r.newActiveId ?? "c1");
+                            }
+                            return r.next;
                             return next;
-                          })
-                        }
-                        className="min-w-[12rem] px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
-                      >
-                        {SUMMON_OPTIONS.map((o) => (
-                          <option key={o.name} value={o.name}>
-                            {o.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <label className="flex items-center gap-2">
-                      <span className="w-16 text-white text-sm">表示名</span>
-                      <div className="px-2 py-1 border rounded bg-white text-gray-900 border-gray-300 text-sm min-w-[12rem]">
-                        {aliasForSummon(s.name)}
-                      </div>
-                    </label>
-
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setTl((prev) => {
-                          const next = structuredClone(prev) as TimelineV1;
-                          // ★ 全ターン（prep含む）から当該IDの配置を削除
-                          if (next.prep) {
-                            Object.keys(next.prep.placements).forEach((k) => {
-                              if (k === s.id) delete next.prep.placements[k];
-                            });
-                          }
-                          // この召喚物の配置も全ターンから除去
-                          next.turns.forEach((t) => {
-                            Object.keys(t.placements).forEach((k) => {
-                              if (k === s.id) delete t.placements[k];
-                            });
                           });
-
-                          // 召喚物リストから除外
-                          next.summons = (next.summons ?? []).filter(
-                            (x) => x.id !== s.id
-                          );
-                          pruneOrphanPlacements(next);
-
-                          // 採番し直し & 選択IDの追随
-                          const r = renumberSummons(
-                            next,
-                            activeActorId ?? null
-                          );
-                          if (r.newActiveId !== (activeActorId ?? null)) {
-                            setActiveActorId(r.newActiveId ?? "c1");
-                          }
-                          return r.next;
-                          return next;
-                        });
-                      }}
-                      className="ml-auto px-2 py-1 text-red-600 hover:underline"
-                    >
-                      削除
-                    </button>
+                        }}
+                        className="ml-auto px-2 py-1 text-red-600 hover:underline"
+                      >
+                        削除
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
+                ))}
+              </div>
+            )}
+          </section>
 
-        {/* 盤面エディタ */}
-        <section className="bg-[#33353a] border-gray-600 rounded-xl shadow p-4">
-          <div className="flex items-center justify-between border-b border-gray-700 -mx-4 px-4 pb-2 mb-3">
-            {/* タブ群（見出し左側） */}
-            <div
-              role="tablist"
-              aria-label="ターン"
-              className="flex gap-1 overflow-x-auto"
-            >
-              {TURNS.map((i) => {
-                const selected = activeTurn === i;
-                const label = i === 0 ? "準備" : `ターン${i}`;
-                return (
-                  <button
-                    key={i}
-                    role="tab"
-                    aria-selected={selected}
-                    onClick={() => setActiveTurn(i)}
-                    className={`px-4 py-2 rounded-t-md border-b-2 whitespace-nowrap
+          {/* 盤面エディタ */}
+          <section className="bg-[#33353a] border-gray-600 rounded-xl shadow p-4">
+            <div className="flex items-center justify-between border-b border-gray-700 -mx-4 px-4 pb-2 mb-3">
+              {/* タブ群（見出し左側） */}
+              <div
+                role="tablist"
+                aria-label="ターン"
+                className="flex gap-1 overflow-x-auto"
+              >
+                {TURNS.map((i) => {
+                  const selected = activeTurn === i;
+                  const label = i === 0 ? "準備" : `ターン${i}`;
+                  return (
+                    <button
+                      key={i}
+                      role="tab"
+                      aria-selected={selected}
+                      onClick={() => setActiveTurn(i)}
+                      className={`px-4 py-2 rounded-t-md border-b-2 whitespace-nowrap
                       ${
                         selected
                           ? "border-blue-500 text-white font-semibold"
                           : "border-transparent text-gray-300 hover:text-white hover:border-gray-500"
                       }`}
-                    title={`${label}`}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-            {/* 右側：前ターンからコピー */}
-            <button
-              onClick={copyTurnFromPrev}
-              className="px-3 py-2 rounded border bg-white text-gray-900 border-gray-300 hover:bg-gray-100"
-              title="一つ前のターンの配置と行動をコピー"
-            >
-              前ターンからコピー
-            </button>
-            <button
-              className="ml-auto px-3 py-1 text-sm border rounded hover:bg-[#33353a] border-gray-600"
-              onClick={() => setShowGrids((v) => !v)}
-            >
-              {showGrids ? "折りたたみ" : "展開"}
-            </button>
-          </div>
-
-          {showGrids && (
-            <div className="inline-block">
-              <table className="border-collapse table-fixed">
-                <thead>
-                  <tr>
-                    {/* 左上の空き角（サイズはセルと同じ） */}
-                    <th
-                      className="border border-gray-700"
-                      style={{ width: CELL_PX, height: CELL_PX }}
-                    />
-                    {/* 横ヘッダ：a..s */}
-                    {COL_LABELS.map((label) => (
-                      <th
-                        key={label}
-                        className="border border-gray-700 text-xs font-medium text-gray-300 text-center"
-                        style={{ width: CELL_PX, height: CELL_PX }}
-                      >
-                        {label}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {Array.from({ length: 19 }, (_, ry) => (
-                    <tr key={ry}>
-                      {/* 縦ヘッダ：1..19 */}
-                      <th
-                        className="border border-gray-700 text-xs font-medium text-gray-300 text-center"
-                        style={{ width: CELL_PX, height: CELL_PX }}
-                      >
-                        {ry + 1}
-                      </th>
-
-                      {/* セル本体（従来の19個） */}
-                      {Array.from({ length: 19 }, (_, cx) => {
-                        const key = cellKey(cx, ry);
-                        const cids = occupiedMap.get(key) ?? [];
-                        const bg =
-                          cids.length === 1
-                            ? isSummonId(cids[0])
-                              ? summonColor(cids[0])
-                              : slotColor(cids[0])
-                            : cids.length > 1
-                            ? "#9ca3af"
-                            : "#f3f4f6";
-
-                        return (
-                          <td
-                            key={cx}
-                            onClick={
-                              isBossCell(cx, ry) || !activeActorId
-                                ? undefined
-                                : () => placeActiveChar(cx, ry)
-                            }
-                            className={`align-top ${
-                              isBossCell(cx, ry) || !activeActorId
-                                ? "cursor-not-allowed"
-                                : "cursor-pointer"
-                            } rounded-none p-0 border border-gray-700 text-[14px] leading-tight select-none`}
-                            style={{
-                              width: CELL_PX,
-                              height: CELL_PX,
-                              background: isBossCell(cx, ry) ? "#d1d5db" : bg,
-                            }}
-                          >
-                            {/* 中央表示＆折返し（長い別名対策） */}
-                            <div className="w-full h-full flex items-center justify-center px-1">
-                              {cids.map((cid) => {
-                                const isSummon = isSummonId
-                                  ? isSummonId(cid)
-                                  : cid.startsWith("s");
-                                if (isSummon) {
-                                  const s = tl.summons?.find(
-                                    (ss) => ss.id === cid
-                                  );
-                                  if (!s) return null; // ← 孤児は描かない
-                                  return (
-                                    <div
-                                      key={cid}
-                                      className="text-center break-all leading-tight"
-                                    >
-                                      {aliasForSummon(s.name)}
-                                    </div>
-                                  );
-                                } else {
-                                  const ch = tl.characters.find(
-                                    (c) => c.id === cid
-                                  );
-                                  if (!ch) return null; // ← 念のため
-                                  return (
-                                    <div
-                                      key={cid}
-                                      className="text-center break-all leading-tight"
-                                    >
-                                      {aliasForName(ch.name)}
-                                    </div>
-                                  );
-                                }
-                              })}
-                            </div>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-
-        {/* 行動順エディタ */}
-        <section className="bg-[#33353a] border-gray-600 rounded-xl shadow p-4">
-          <h2 className="font-semibold mb-3">
-            行動順（{activeTurn === 0 ? "準備" : `Turn ${activeTurn}`}）
-          </h2>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-white">
-                <th className="w-16">順</th>
-                <th className="w-40">キャラ</th>
-                <th className="w-48">スキル</th>
-                <th>備考</th>
-                <th className="w-24" />
-              </tr>
-            </thead>
-            <tbody>
-              {Array.from({ length: 5 }, (_, i) => i + 1).map((ord) => {
-                const idx = turn.steps.findIndex((s) => s.order === ord);
-                const step = idx >= 0 ? turn.steps[idx] : null;
-                const setStep = (patch: Partial<Step>) =>
-                  setTl((prev) => {
-                    const next = structuredClone(prev) as TimelineV1;
-                    const t = getActiveTurnRef(next);
-                    const j = t.steps.findIndex((s) => s.order === ord);
-                    if (j >= 0) t.steps[j] = { ...t.steps[j], ...patch };
-                    else
-                      t.steps.push({
-                        order: ord,
-                        actorId: tl.characters[0]?.id ?? "c1",
-                        skill: "",
-                        note: "",
-                        ...patch,
-                      } as Step);
-                    t.steps.sort((a, b) => a.order - b.order);
-                    return next;
-                  });
-                const remove = () =>
-                  setTl((prev) => {
-                    const next = structuredClone(prev) as TimelineV1;
-                    const t = getActiveTurnRef(next);
-                    t.steps = t.steps.filter((s) => s.order !== ord);
-                    return next;
-                  });
-                return (
-                  <tr key={ord} className="border-t">
-                    <td className="py-2 pr-2">{ord}</td>
-                    <td className="pr-2">
-                      <select
-                        value={step?.actorId ?? ""}
-                        onChange={(e) => setStep({ actorId: e.target.value })}
-                        className="w-full px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
-                      >
-                        <option value="" disabled>
-                          選択
-                        </option>
-                        {tl.characters.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="pr-2">
-                      <input
-                        value={step?.skill ?? ""}
-                        onChange={(e) => setStep({ skill: e.target.value })}
-                        placeholder="S4 / S4>S2 など"
-                        className="w-full px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
-                      />
-                    </td>
-                    <td className="pr-2">
-                      <input
-                        value={step?.note ?? ""}
-                        onChange={(e) => setStep({ note: e.target.value })}
-                        placeholder="補足（例: 左箱回収→戻る）"
-                        className="w-full px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
-                      />
-                    </td>
-                    <td>
-                      <button
-                        onClick={remove}
-                        className="px-2 py-1 text-red-600 hover:underline"
-                      >
-                        クリア
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          <div className="mt-2 text-xs text-white">
-            ※空行は保存されません（未入力はURL縮小のため省略）。
-          </div>
-        </section>
-
-        {/* 保存・共有（画面下部） */}
-        <section className="bg-[#33353a] border-gray-600 rounded-xl shadow p-4">
-          <h2 className="font-semibold mb-3">保存・共有</h2>
-
-          {/* タイトル＆操作 */}
-          <div className="flex flex-wrap items-center gap-3 mb-3">
-            <label className="flex items-center gap-2">
-              <span className="text-white text-sm">タイトル</span>
-              <input
-                className="px-2 py-1 border rounded bg-white text-gray-900 border-gray-300 min-w-[16rem]"
-                value={tl.title ?? ""}
-                onChange={(e) => setTl({ ...tl, title: e.target.value })}
-                placeholder="TLタイトル"
-              />
-            </label>
-
-            <div className="ml-auto flex items-center gap-2">
-              <button
-                onClick={saveCurrentTL}
-                className="px-3 py-2 rounded border bg-white text-gray-900 border-gray-300 hover:bg-gray-100"
-              >
-                保存（ブラウザ）
-              </button>
-              <button
-                onClick={copyUrl}
-                className="px-3 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
-              >
-                URL生成
-              </button>
-            </div>
-          </div>
-
-          {/* 一覧 */}
-          <div className="border-t border-gray-700 pt-3">
-            <h3 className="font-semibold mb-2">保存済みTL</h3>
-            {savedList.length === 0 ? (
-              <div className="text-sm text-gray-400">
-                まだ保存はありません。
+                      title={`${label}`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
               </div>
-            ) : (
-              <ul className="space-y-2">
-                {savedList.map((item) => (
-                  <li key={item.id} className="flex items-center gap-2">
-                    <div className="flex-1">
-                      <div className="font-medium">{item.title}</div>
-                      <div className="text-xs text-gray-400">
-                        {new Date(item.savedAt).toLocaleString()}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => loadTL(item.id)}
-                      className="px-2 py-1 rounded border bg-white text-gray-900 border-gray-300 hover:bg-gray-100"
-                    >
-                      呼び出し
-                    </button>
-                    <button
-                      onClick={() => deleteTL(item.id)}
-                      className="px-2 py-1 rounded border border-red-400 text-red-400 hover:bg-red-50/10"
-                    >
-                      削除
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              {/* 右側：前ターンからコピー */}
+              <button
+                onClick={copyTurnFromPrev}
+                className="px-3 py-2 rounded border bg-white text-gray-900 border-gray-300 hover:bg-gray-100"
+                title="一つ前のターンの配置と行動をコピー"
+              >
+                前ターンからコピー
+              </button>
+              <button
+                className="ml-auto px-3 py-1 text-sm border rounded hover:bg-[#33353a] border-gray-600"
+                onClick={() => setShowGrids((v) => !v)}
+              >
+                {showGrids ? "折りたたみ" : "展開"}
+              </button>
+            </div>
+            <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
+              {/* rows */}
+              <span className="text-white/80">縦</span>
+              <input
+                type="number"
+                min={5}
+                max={35}
+                className="w-20 px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
+                value={tl.grid.rows}
+                onChange={(e) => {
+                  const rows = Math.max(5, Math.min(35, +e.target.value || 0));
+                  setTl((prev) => ({ ...prev, grid: { ...prev.grid, rows } }));
+                }}
+              />
+              <span>×</span>
+
+              {/* cols */}
+              <span className="text-white/80">横</span>
+              <input
+                type="number"
+                min={5}
+                max={35}
+                className="w-20 px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
+                value={tl.grid.cols}
+                onChange={(e) => {
+                  const cols = Math.max(5, Math.min(35, +e.target.value || 0));
+                  setTl((prev) => ({ ...prev, grid: { ...prev.grid, cols } }));
+                }}
+              />
+
+              {/* ボス領域 */}
+              <span className="ml-4 text-white/80">ボス領域</span>
+              {(() => {
+                const b = tl.boss ?? defaultBoss(tl.grid);
+                return (
+                  <>
+                    <label className="flex items-center gap-1">
+                      <span>X</span>
+                      <input
+                        type="number"
+                        min={0}
+                        className="w-16 px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
+                        value={b.x}
+                        onChange={(e) => {
+                          const x = Math.max(0, +e.target.value || 0);
+                          setTl((prev) => ({
+                            ...prev,
+                            boss: {
+                              ...(prev.boss ?? defaultBoss(prev.grid)),
+                              x,
+                            },
+                          }));
+                        }}
+                      />
+                    </label>
+                    <label className="flex items-center gap-1">
+                      <span>Y</span>
+                      <input
+                        type="number"
+                        min={0}
+                        className="w-16 px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
+                        value={b.y}
+                        onChange={(e) => {
+                          const y = Math.max(0, +e.target.value || 0);
+                          setTl((prev) => ({
+                            ...prev,
+                            boss: {
+                              ...(prev.boss ?? defaultBoss(prev.grid)),
+                              y,
+                            },
+                          }));
+                        }}
+                      />
+                    </label>
+                    <label className="flex items-center gap-1">
+                      <span>W</span>
+                      <input
+                        type="number"
+                        min={1}
+                        className="w-16 px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
+                        value={b.w}
+                        onChange={(e) => {
+                          const w = Math.max(1, +e.target.value || 0);
+                          setTl((prev) => ({
+                            ...prev,
+                            boss: {
+                              ...(prev.boss ?? defaultBoss(prev.grid)),
+                              w,
+                            },
+                          }));
+                        }}
+                      />
+                    </label>
+                    <label className="flex items-center gap-1">
+                      <span>H</span>
+                      <input
+                        type="number"
+                        min={1}
+                        className="w-16 px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
+                        value={b.h}
+                        onChange={(e) => {
+                          const h = Math.max(1, +e.target.value || 0);
+                          setTl((prev) => ({
+                            ...prev,
+                            boss: {
+                              ...(prev.boss ?? defaultBoss(prev.grid)),
+                              h,
+                            },
+                          }));
+                        }}
+                      />
+                    </label>
+                  </>
+                );
+              })()}
+
+              {/* はみ出し/ボス被りを一括クリーン */}
+              <button
+                className="ml-2 px-3 py-1 rounded border bg-white text-gray-900 border-gray-300 hover:bg-gray-100"
+                title="盤外やボス領域にある配置を削除して整合性を保ちます"
+                onClick={() => {
+                  setTl((prev) => {
+                    const next = structuredClone(prev) as TimelineV1;
+                    const g = next.grid;
+                    const b = next.boss ?? defaultBoss(g);
+                    const inGrid = (p: Position) =>
+                      p.x >= 0 && p.x < g.cols && p.y >= 0 && p.y < g.rows;
+                    const inBoss = (p: Position) =>
+                      p.x >= b.x &&
+                      p.x < b.x + b.w &&
+                      p.y >= b.y &&
+                      p.y < b.y + b.h;
+                    const prune = (pl: Record<string, Position>) => {
+                      for (const k of Object.keys(pl)) {
+                        const p = pl[k];
+                        if (!p || !inGrid(p) || inBoss(p)) delete pl[k];
+                      }
+                    };
+                    if (next.prep) prune(next.prep.placements);
+                    next.turns.forEach((t) => prune(t.placements));
+                    return next;
+                  });
+                }}
+              >
+                適用
+              </button>
+            </div>
+            {showGrids && (
+              // ① 親を横スクロール可能に
+              <div className="w-full overflow-x-auto">
+                {/* ② テーブルの最小幅 = (左上角セル + 列数) * CELL_PX */}
+                <div
+                  className="inline-block"
+                  style={{ minWidth: (tl.grid.cols + 1) * CELL_PX }}
+                >
+                  {/* ③ table は固定レイアウトのまま */}
+                  <table
+                    className="border-collapse table-fixed"
+                    // Safari の収縮対策（念のため明示）
+                    style={{ tableLayout: "fixed" as const }}
+                  >
+                    <thead>
+                      <tr>
+                        {/* 左上の空き角 */}
+                        <th
+                          className="border border-gray-700"
+                          style={{ width: CELL_PX, height: CELL_PX }}
+                        />
+                        {/* 横ヘッダ（列数に追従） */}
+                        {Array.from({ length: tl.grid.cols }, (_, cx) => (
+                          <th
+                            key={cx}
+                            className="border border-gray-700 text-xs font-medium text-gray-300 text-center"
+                            style={{ width: CELL_PX, height: CELL_PX }}
+                          >
+                            {alphaLabel(cx)}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {Array.from({ length: tl.grid.rows }, (_, ry) => (
+                        <tr key={ry}>
+                          {/* 縦ヘッダ */}
+                          <th
+                            className="border border-gray-700 text-xs font-medium text-gray-300 text-center"
+                            style={{ width: CELL_PX, height: CELL_PX }}
+                          >
+                            {ry + 1}
+                          </th>
+
+                          {/* セル本体（従来の19個） */}
+                          {Array.from({ length: tl.grid.cols }, (_, cx) => {
+                            const key = cellKey(cx, ry);
+                            const cids = occupiedMap.get(key) ?? [];
+                            const bg =
+                              cids.length === 1
+                                ? isSummonId(cids[0])
+                                  ? summonColor(cids[0]) + "88"
+                                  : slotColor(cids[0]) + "88"
+                                : cids.length > 1
+                                ? "#9ca3af"
+                                : "#f3f4f6";
+
+                            return (
+                              <td
+                                key={cx}
+                                onClick={() => {
+                                  if (isBossCell(cx, ry)) return;
+
+                                  if (
+                                    cids.length === 1 &&
+                                    cids[0] !== activeActorId
+                                  ) {
+                                    setActiveActorId(cids[0]);
+                                    return;
+                                  }
+
+                                  if (!activeActorId && cids.length >= 1) {
+                                    setActiveActorId(cids[0]);
+                                    return;
+                                  }
+
+                                  if (activeActorId) placeActiveChar(cx, ry);
+                                }}
+                                className={`align-top ${
+                                  isBossCell(cx, ry)
+                                    ? "cursor-not-allowed"
+                                    : "cursor-pointer"
+                                } rounded-none p-0 border border-gray-700 text-[14px] leading-tight select-none`}
+                                style={{
+                                  width: CELL_PX,
+                                  height: CELL_PX,
+                                  background: isBossCell(cx, ry)
+                                    ? "#d1d5db"
+                                    : bg,
+                                }}
+                                role="button"
+                                title={
+                                  isBossCell(cx, ry)
+                                    ? "ボス領域（配置不可）"
+                                    : activeActorId
+                                    ? "クリックで配置"
+                                    : cids[0]
+                                    ? isSummonId(cids[0])
+                                      ? `クリックで ${aliasForSummon(
+                                          tl.summons?.find(
+                                            (s) => (s.id as string) === cids[0]
+                                          )?.name
+                                        )} を選択`
+                                      : `クリックで ${aliasForName(
+                                          tl.characters?.find(
+                                            (s) => (s.id as string) === cids[0]
+                                          )?.name
+                                        )} を選択`
+                                    : "クリックで選択"
+                                }
+                              >
+                                {/* 中央表示＆折返し（長い別名対策） */}
+                                <div className="w-full h-full flex items-center justify-center px-1">
+                                  {cids.map((cid) => {
+                                    const isSummon = isSummonId
+                                      ? isSummonId(cid)
+                                      : cid.startsWith("s");
+                                    if (isSummon) {
+                                      const s = tl.summons?.find(
+                                        (ss) => ss.id === cid
+                                      );
+                                      if (!s) return null; // ← 孤児は描かない
+                                      return (
+                                        <div
+                                          key={cid}
+                                          className="text-center break-all leading-tight"
+                                        >
+                                          {aliasForSummon(s.name)}
+                                        </div>
+                                      );
+                                    } else {
+                                      const ch = tl.characters.find(
+                                        (c) => c.id === cid
+                                      );
+                                      if (!ch) return null; // ← 念のため
+                                      return (
+                                        <div
+                                          key={cid}
+                                          className="text-center break-all leading-tight"
+                                        >
+                                          {aliasForName(ch.name)}
+                                        </div>
+                                      );
+                                    }
+                                  })}
+                                </div>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             )}
-          </div>
-        </section>
+          </section>
+
+          {/* 行動順エディタ */}
+          <section className="bg-[#33353a] border-gray-600 rounded-xl shadow p-4">
+            <h2 className="font-semibold mb-3">
+              行動順（{activeTurn === 0 ? "準備" : `Turn ${activeTurn}`}）
+            </h2>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-white">
+                  <th className="w-16">順</th>
+                  <th className="w-40">キャラ</th>
+                  <th className="w-48">スキル</th>
+                  <th>備考</th>
+                  <th className="w-24" />
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 5 }, (_, i) => i + 1).map((ord) => {
+                  const idx = turn.steps.findIndex((s) => s.order === ord);
+                  const step = idx >= 0 ? turn.steps[idx] : null;
+                  const setStep = (patch: Partial<Step>) =>
+                    setTl((prev) => {
+                      const next = structuredClone(prev) as TimelineV1;
+                      const t = getActiveTurnRef(next);
+                      const j = t.steps.findIndex((s) => s.order === ord);
+                      if (j >= 0) t.steps[j] = { ...t.steps[j], ...patch };
+                      else
+                        t.steps.push({
+                          order: ord,
+                          actorId: tl.characters[0]?.id ?? "c1",
+                          skill: "",
+                          note: "",
+                          ...patch,
+                        } as Step);
+                      t.steps.sort((a, b) => a.order - b.order);
+                      return next;
+                    });
+                  const remove = () =>
+                    setTl((prev) => {
+                      const next = structuredClone(prev) as TimelineV1;
+                      const t = getActiveTurnRef(next);
+                      t.steps = t.steps.filter((s) => s.order !== ord);
+                      return next;
+                    });
+                  return (
+                    <tr key={ord} className="border-t">
+                      <td className="py-2 pr-2">{ord}</td>
+                      <td className="pr-2">
+                        <select
+                          value={step?.actorId ?? ""}
+                          onChange={(e) => setStep({ actorId: e.target.value })}
+                          className="w-full px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
+                        >
+                          <option value="" disabled>
+                            選択
+                          </option>
+                          {tl.characters.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="pr-2">
+                        <input
+                          value={step?.skill ?? ""}
+                          onChange={(e) => setStep({ skill: e.target.value })}
+                          placeholder="S4 / S4>S2 など"
+                          className="w-full px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
+                        />
+                      </td>
+                      <td className="pr-2">
+                        <input
+                          value={step?.note ?? ""}
+                          onChange={(e) => setStep({ note: e.target.value })}
+                          placeholder="補足（例: 左箱回収→戻る）"
+                          className="w-full px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
+                        />
+                      </td>
+                      <td>
+                        <button
+                          onClick={remove}
+                          className="px-2 py-1 text-red-600 hover:underline"
+                        >
+                          クリア
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <div className="mt-2 text-xs text-white">
+              ※空行は保存されません（未入力はURL縮小のため省略）。
+            </div>
+          </section>
+
+          {/* 保存・共有（画面下部） */}
+          <section className="bg-[#33353a] border-gray-600 rounded-xl shadow p-4">
+            <h2 className="font-semibold mb-3">保存・共有</h2>
+
+            {/* タイトル＆操作 */}
+            <div className="flex flex-wrap items-center gap-3 mb-3">
+              <label className="flex items-center gap-2">
+                <span className="text-white text-sm">タイトル</span>
+                <input
+                  className="px-2 py-1 border rounded bg-white text-gray-900 border-gray-300 min-w-[16rem]"
+                  value={tl.title ?? ""}
+                  onChange={(e) => setTl({ ...tl, title: e.target.value })}
+                  placeholder="TLタイトル"
+                />
+              </label>
+
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  onClick={saveCurrentTL}
+                  className="px-3 py-2 rounded border bg-white text-gray-900 border-gray-300 hover:bg-gray-100"
+                >
+                  保存（ブラウザ）
+                </button>
+                <button
+                  onClick={copyUrl}
+                  className="px-3 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  URL生成
+                </button>
+              </div>
+            </div>
+
+            {/* 一覧 */}
+            <div className="border-t border-gray-700 pt-3">
+              <h3 className="font-semibold mb-2">保存済みTL</h3>
+              {savedList.length === 0 ? (
+                <div className="text-sm text-gray-400">
+                  まだ保存はありません。
+                </div>
+              ) : (
+                <ul className="space-y-2">
+                  {savedList.map((item) => (
+                    <li key={item.id} className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <div className="font-medium">{item.title}</div>
+                        <div className="text-xs text-gray-400">
+                          {new Date(item.savedAt).toLocaleString()}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => loadTL(item.id)}
+                        className="px-2 py-1 rounded border bg-white text-gray-900 border-gray-300 hover:bg-gray-100"
+                      >
+                        呼び出し
+                      </button>
+                      <button
+                        onClick={() => deleteTL(item.id)}
+                        className="px-2 py-1 rounded border border-red-400 text-red-400 hover:bg-red-50/10"
+                      >
+                        削除
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </section>
+        </div>
       </div>
     </div>
   );

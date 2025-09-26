@@ -10,7 +10,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   // SSRキャラ
   {
     name: "ヴェプリー",
-    yomi: "vepuri-",
+    yomi: "ヴェプリー",
     type: "SG",
     uniqueKeyOptions: [
       "安全な鑑賞距離",
@@ -23,7 +23,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "ペリティア",
-    yomi: "perithia",
+    yomi: "ペリティア",
     type: "MG",
     uniqueKeyOptions: [
       "臨時システムメンテナンス",
@@ -36,7 +36,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "トロロ",
-    yomi: "tororo",
+    yomi: "トロロ",
     type: "AR",
     uniqueKeyOptions: [
       "彗星一閃",
@@ -49,7 +49,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "サブリナ",
-    yomi: "saburina",
+    yomi: "サブリナ",
     type: "SG",
     uniqueKeyOptions: [
       "食べられる幸せ",
@@ -62,7 +62,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "瓊玖",
-    yomi: "keikyu",
+    yomi: "ケイキュウ",
     type: "AR",
     uniqueKeyOptions: [
       "集中力",
@@ -75,7 +75,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "モシン・ナガン",
-    yomi: "moshinnagan",
+    yomi: "モシンナガン",
     type: "SR",
     uniqueKeyOptions: [
       "治安巡回小隊",
@@ -88,7 +88,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "ウルリド",
-    yomi: "ururido",
+    yomi: "ウルリド",
     type: "近接",
     uniqueKeyOptions: [
       "迅速行動",
@@ -101,7 +101,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "スオミ",
-    yomi: "suomi",
+    yomi: "スオミ",
     type: "SMG",
     uniqueKeyOptions: [
       "負けん気",
@@ -114,7 +114,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "ペーペーシャ",
-    yomi: "pe-pe-sha",
+    yomi: "ペーペーシャ",
     type: "SMG",
     uniqueKeyOptions: [
       "栄光と共に",
@@ -127,7 +127,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "マキアート",
-    yomi: "makia-to",
+    yomi: "マキアート",
     type: "SR",
     uniqueKeyOptions: [
       "追加情報",
@@ -140,7 +140,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "黛煙",
-    yomi: "daien",
+    yomi: "ダイエン",
     type: "AR",
     uniqueKeyOptions: [
       "余韻",
@@ -153,7 +153,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "ドゥシェーヴヌイ",
-    yomi: "dwushe-vunui",
+    yomi: "ドゥシェーヴヌイ",
     type: "SR",
     uniqueKeyOptions: [
       "祝福の槍",
@@ -166,7 +166,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "センタウレイシー",
-    yomi: "sentaureishi-",
+    yomi: "センタウレイシー",
     type: "AR",
     uniqueKeyOptions: [
       "食前デザート",
@@ -179,7 +179,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "クルカイ",
-    yomi: "kurukai",
+    yomi: "クルカイ",
     type: "AR",
     uniqueKeyOptions: [
       "デスチョーク",
@@ -192,7 +192,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "ミシュティ",
-    yomi: "mishuthi",
+    yomi: "ミシュティ",
     type: "AR",
     uniqueKeyOptions: [
       "夢の欠片",
@@ -205,7 +205,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "ヴェクター",
-    yomi: "vekuta-",
+    yomi: "ヴェクター",
     type: "SMG",
     uniqueKeyOptions: [
       "臨終ケア",
@@ -218,7 +218,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "幼熙",
-    yomi: "yuhi",
+    yomi: "ユヒ",
     type: "AR",
     uniqueKeyOptions: [
       "努力と結果",
@@ -231,7 +231,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "朝暉",
-    yomi: "chouki",
+    yomi: "チョウキ",
     type: "SMG",
     uniqueKeyOptions: [
       "命門看破",
@@ -244,7 +244,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "スプリングフィールド",
-    yomi: "supuringufi-rudo",
+    yomi: "スプリングフィールド",
     type: "SR",
     uniqueKeyOptions: [
       "結束力",
@@ -257,7 +257,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "ペリー",
-    yomi: "peri-",
+    yomi: "ペリー",
     type: "SMG",
     uniqueKeyOptions: [
       "取引の元金",
@@ -270,7 +270,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "緋",
-    yomi: "fei",
+    yomi: "フェイ",
     type: "HG",
     uniqueKeyOptions: [
       "痕跡追跡",
@@ -283,7 +283,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "秋樺",
-    yomi: "shuuka",
+    yomi: "シュウカ",
     type: "SG",
     uniqueKeyOptions: [
       "配膳準備",
@@ -296,7 +296,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "ニキータ",
-    yomi: "niki-ta",
+    yomi: "ニキータ",
     type: "SR",
     uniqueKeyOptions: [
       "正義の人形",
@@ -309,7 +309,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "ビヨーカ",
-    yomi: "biyo-ka",
+    yomi: "ビヨーカ",
     type: "AR",
     uniqueKeyOptions: [
       "元気はつらつ",
@@ -322,7 +322,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "アンドリス",
-    yomi: "andorisu",
+    yomi: "アンドリス",
     type: "AR",
     uniqueKeyOptions: [
       "耳を澄ませば",
@@ -333,10 +333,23 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "事前調査",
     ],
   },
+  {
+    name: "絳雨",
+    yomi: "コウウ",
+    type: "AR",
+    uniqueKeyOptions: [
+      "ムードメーカー",
+      "奇策逆転",
+      "抑えきれぬ行動力",
+      "一意専心",
+      "早い者勝ち",
+      "余裕の一手",
+    ],
+  },
   // SRキャラ
   {
     name: "グローザ",
-    yomi: "gyo-za",
+    yomi: "グローザ",
     type: "AR",
     uniqueKeyOptions: [
       "多面的思考",
@@ -349,7 +362,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "ネメシス",
-    yomi: "nemeshisu",
+    yomi: "ネメシス",
     type: "SR",
     uniqueKeyOptions: [
       "呪いあらたか",
@@ -362,7 +375,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "キャロリック",
-    yomi: "kyarorikku",
+    yomi: "キャロリック",
     type: "近接",
     uniqueKeyOptions: [
       "精神統一",
@@ -375,7 +388,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "コルフェン",
-    yomi: "korufen",
+    yomi: "コルフェン",
     type: "HG",
     uniqueKeyOptions: [
       "医者の指示は絶対",
@@ -388,7 +401,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "シャークリー",
-    yomi: "sha-kuri-",
+    yomi: "シャークリー",
     type: "AR",
     uniqueKeyOptions: [
       "小悪魔の囁き",
@@ -401,7 +414,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "チータ",
-    yomi: "chi-ta",
+    yomi: "チータ",
     type: "SMG",
     uniqueKeyOptions: [
       "正当な研究経費",
@@ -414,7 +427,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "ナガン",
-    yomi: "nagan",
+    yomi: "ナガン",
     type: "HG",
     uniqueKeyOptions: [
       "颯爽出撃",
@@ -427,7 +440,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "クシーニヤ",
-    yomi: "kushi-niya",
+    yomi: "クシーニヤ",
     type: "HG",
     uniqueKeyOptions: [
       "互助的協力",
@@ -440,7 +453,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "リッタラ",
-    yomi: "rittara",
+    yomi: "リッタラ",
     type: "MG",
     uniqueKeyOptions: [
       "計画制定",
@@ -453,7 +466,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   },
   {
     name: "ロッタ",
-    yomi: "rotta",
+    yomi: "ロッタ",
     type: "SG",
     uniqueKeyOptions: [
       "静かな支援",
