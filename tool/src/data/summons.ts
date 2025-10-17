@@ -21,4 +21,8 @@ export const SUMMON_OPTIONS: SummonOption[] = [
     name: "自動砲塔（アンドリス）",
     alias: "自動砲塔",
   },
+  {
+    name: "アリオス（フローレンス）",
+    alias: "アリオス",
+  },
 ];

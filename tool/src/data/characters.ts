@@ -245,6 +245,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
   {
     name: "スプリングフィールド",
     yomi: "スプリングフィールド",
+    alias: "春田",
     type: "SR",
     uniqueKeyOptions: [
       "結束力",
@@ -344,6 +345,19 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "一意専心",
       "早い者勝ち",
       "余裕の一手",
+    ],
+  },
+  {
+    name: "フローレンス",
+    yomi: "フローレンス",
+    type: "HG",
+    uniqueKeyOptions: [
+      "危険な刺激",
+      "愉悦",
+      "感度上昇",
+      "ご褒美",
+      "束縛欲",
+      "甘美な誘惑",
     ],
   },
   // SRキャラ
