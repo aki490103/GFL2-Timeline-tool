@@ -360,6 +360,19 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "甘美な誘惑",
     ],
   },
+  {
+    name: "リンド",
+    yomi: "リンド",
+    type: "SG",
+    uniqueKeyOptions: [
+      "痛覚感知",
+      "夜更かしの勘",
+      "ラジオ招待",
+      "文明的な裁定",
+      "甘味療法",
+      "禁断症状"
+    ]
+  },
   // SRキャラ
   {
     name: "グローザ",

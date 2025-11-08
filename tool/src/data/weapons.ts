@@ -141,6 +141,11 @@ export const WEAPON_OPTIONS: WeaponOption[] = [
     yomi: "イアソ",
     type: "HG",
   },
+  {
+    name: "棘の法則",
+    yomi: "トゲノホウソク",
+    type: "SG",
+  },
   // 走行計画武器
   {
     name: "PapaFigo",
