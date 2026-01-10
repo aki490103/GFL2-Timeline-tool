@@ -156,6 +156,16 @@ export const WEAPON_OPTIONS: WeaponOption[] = [
     yomi: "ライオンセル",
     type: "SMG",
   },
+  {
+    name: "渡り人の讃歌",
+    yomi: "ワタリビトノサンカ",
+    type: "SMG",
+  },
+  {
+    name: "おもちゃ職人",
+    yomi: "オモチャショクニン",
+    type: "MG",
+  },
   // 走行計画武器
   {
     name: "PapaFigo",

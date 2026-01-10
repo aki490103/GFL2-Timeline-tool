@@ -399,6 +399,32 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "プロ級の対応力",
     ],
   },
+  {
+    name: "ロベラ",
+    yomi: "ロベラ",
+    type: "SMG",
+    uniqueKeyOptions: [
+      "防御降臨",
+      "第三世代メンタル",
+      "詳細分析",
+      "ダイナーゲート以下",
+      "冷たい保護色",
+      "安定したコア",
+    ],
+  },
+  {
+    name: "ルイス",
+    yomi: "ルイス",
+    type: "MG",
+    uniqueKeyOptions: [
+      "天真爛漫なデザイナー",
+      "笑顔のアルゴリズム",
+      "童心を守る信念",
+      "奇想天外な楽観主義者",
+      "可愛さこそ正義",
+      "クラウドの守護者",
+    ],
+  },
   // SRキャラ
   {
     name: "グローザ",
