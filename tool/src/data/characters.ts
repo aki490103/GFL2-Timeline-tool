@@ -425,6 +425,32 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "クラウドの守護者",
     ],
   },
+  {
+    name: "サクラ",
+    yomi: "サクラ",
+    type: "SMG",
+    uniqueKeyOptions: [
+      "頑固頭",
+      "時間指定配達",
+      "誠意ある謝罪",
+      "不運体質",
+      "一人前の勇気",
+      "日々積み重ね",
+    ],
+  },
+  {
+    name: "アルヴァ",
+    yomi: "アルヴァ",
+    type: "AR",
+    uniqueKeyOptions: [
+      "雪地の達人",
+      "後方支援のプロ",
+      "援護指揮",
+      "遅れ咲き",
+      "仕切り直し",
+      "骨ばみ",
+    ],
+  },
   // SRキャラ
   {
     name: "グローザ",
