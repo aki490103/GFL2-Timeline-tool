@@ -173,7 +173,17 @@ export const WEAPON_OPTIONS: WeaponOption[] = [
   },
   {
     name: "6P33",
-    yomi: "ロクピーサンサン",
+    yomi: "6P33",
+    type: "AR",
+  },
+  {
+    name: "ネオルド",
+    yomi: "ネオルド",
+    type: "MG",
+  },
+  {
+    name: "6P71",
+    yomi: "6P71",
     type: "AR",
   },
   // 走行計画武器
