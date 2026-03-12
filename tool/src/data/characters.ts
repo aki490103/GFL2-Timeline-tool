@@ -451,6 +451,33 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "骨ばみ",
     ],
   },
+  {
+    name: "バチルダ",
+    yomi: "バチルダ",
+    type: "MG",
+    uniqueKeyOptions: [
+      "口下手",
+      "せっかち",
+      "誤解された気持ち",
+      "故障排除モジュール",
+      "実用的な改造",
+      "機械操作",
+    ],
+  },
+  {
+    name: "ヴォイマスティナ",
+    yomi: "ヴォイマスティナ",
+    alias: "ヴォイ",
+    type: "AR",
+    uniqueKeyOptions: [
+      "破片のベール",
+      "広視野",
+      "全域狩猟",
+      "孤立絶殺",
+      "強者キラー",
+      "傷跡を力に",
+    ],
+  },
   // SRキャラ
   {
     name: "グローザ",

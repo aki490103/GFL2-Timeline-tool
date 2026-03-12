@@ -25,4 +25,12 @@ export const SUMMON_OPTIONS: SummonOption[] = [
     name: "アリオス（フローレンス）",
     alias: "アリオス",
   },
+  {
+    name: "連携防御構装（バチルダ）",
+    alias: "連携防御構装",
+  },
+  {
+    name: "連携戦闘構装（バチルダ）",
+    alias: "連携戦闘構装",
+  },
 ];
