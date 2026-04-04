@@ -478,6 +478,19 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "傷跡を力に",
     ],
   },
+  {
+    name: "レイニー",
+    yomi: "レイニー",
+    type: "SMG",
+    uniqueKeyOptions: [
+      "メンタルの絆",
+      "悪いの悪いの飛んでけ",
+      "傘バリア",
+      "仲間の帰還",
+      "暖かな日差し",
+      "OGASの実力",
+    ]
+  },
   // SRキャラ
   {
     name: "グローザ",
