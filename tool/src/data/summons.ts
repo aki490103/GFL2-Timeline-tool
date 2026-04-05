@@ -33,4 +33,8 @@ export const SUMMON_OPTIONS: SummonOption[] = [
     name: "連携戦闘構装（バチルダ）",
     alias: "連携戦闘構装",
   },
+  {
+    name: "心像体（レイニー）",
+    alias: "心像体",
+  },
 ];
