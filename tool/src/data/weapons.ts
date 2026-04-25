@@ -191,6 +191,11 @@ export const WEAPON_OPTIONS: WeaponOption[] = [
     yomi: "ペリヘリオン",
     type: "SMG",
   },
+  {
+    name: "ダルセット",
+    yomi: "ダルセット",
+    type: "SG",
+  },
   // 走行計画武器
   {
     name: "PapaFigo",
