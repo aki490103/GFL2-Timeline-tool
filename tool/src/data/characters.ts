@@ -489,7 +489,20 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "仲間の帰還",
       "暖かな日差し",
       "OGASの実力",
-    ]
+    ],
+  },
+  {
+    name: "ヘレン",
+    yomi: "ヘレン",
+    type: "SG",
+    uniqueKeyOptions: [
+      "ダブルスパイ",
+      "冷艶の開花",
+      "埋もれた過去",
+      "守護者の決意",
+      "母性の輝き",
+      "ルール執行者",
+    ],
   },
   // SRキャラ
   {
