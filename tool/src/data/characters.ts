@@ -504,6 +504,19 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "ルール執行者",
     ],
   },
+  {
+    name: "パエトゥーサ",
+    yomi: "パエトゥーサ",
+    type: "近接",
+    uniqueKeyOptions: [
+      "冷めた血",
+      "駆ける決意",
+      "処刑人",
+      "生命の恵み",
+      "領域展開",
+      "双影同行",
+    ],
+  },
   // SRキャラ
   {
     name: "グローザ",
