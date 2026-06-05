@@ -517,6 +517,19 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "双影同行",
     ],
   },
+  {
+    name: "バスティ",
+    yomi: "バスティ",
+    type: "HG",
+    uniqueKeyOptions: [
+      "思いつき",
+      "ストリートアート",
+      "依存症",
+      "ドジっ子",
+      "ドッキリ",
+      "落書き",
+    ],
+  },
   // SRキャラ
   {
     name: "グローザ",

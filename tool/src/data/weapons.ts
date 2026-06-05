@@ -201,6 +201,11 @@ export const WEAPON_OPTIONS: WeaponOption[] = [
     yomi: "フィリア",
     type: "近接",
   },
+  {
+    name: "アズライール",
+    yomi: "アズライール",
+    type: "HG",
+  },
   // 走行計画武器
   {
     name: "PapaFigo",
