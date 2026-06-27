@@ -530,6 +530,32 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "落書き",
     ],
   },
+  {
+    name: "ローレライ",
+    yomi: "ローレライ",
+    type: "SR",
+    uniqueKeyOptions: [
+      "秘めた熱情",
+      "痛覚閾値",
+      "縺れる夢",
+      "天使の温もり",
+      "悪魔の歩調",
+      "絶対的支配者",
+    ],
+  },
+  {
+    name: "ハープシー",
+    yomi: "ハープシー",
+    type: "SMG",
+    uniqueKeyOptions: [
+      "移動基地局",
+      "乱暴カスタム",
+      "丁寧な準備",
+      "仲間の支え",
+      "奮う勇気",
+      "遠距離聴取",
+    ],
+  },
   // SRキャラ
   {
     name: "グローザ",
