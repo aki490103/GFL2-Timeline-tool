@@ -37,4 +37,8 @@ export const SUMMON_OPTIONS: SummonOption[] = [
     name: "心像体（レイニー）",
     alias: "心像体",
   },
+  {
+    name: "追猟者・Ⅱ型（ローレライ）",
+    alias: "追猟者・Ⅱ型"
+  }
 ];
