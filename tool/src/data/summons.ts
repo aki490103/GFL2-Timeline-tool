@@ -39,6 +39,14 @@ export const SUMMON_OPTIONS: SummonOption[] = [
   },
   {
     name: "追猟者・Ⅱ型（ローレライ）",
-    alias: "追猟者・Ⅱ型"
-  }
+    alias: "追猟者・Ⅱ型",
+  },
+  {
+    name: "アルシン（スプリングフィールド）",
+    alias: "アルシン",
+  },
+  {
+    name: "ペガサス（劉蒔）",
+    alias: "ペガサス",
+  },
 ];

@@ -216,6 +216,16 @@ export const WEAPON_OPTIONS: WeaponOption[] = [
     yomi: "パラドックス",
     type: "SMG",
   },
+  {
+    name: "ナイトカルダモン",
+    yomi: "ナイトカルダモン",
+    type: "SR",
+  },
+  {
+    name: "絶影",
+    yomi: "ゼツエイ",
+    type: "SR",
+  },
   // 走行計画武器
   {
     name: "PapaFigo",
