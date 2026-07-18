@@ -556,6 +556,32 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "遠距離聴取",
     ],
   },
+  {
+    name: "シャイアン",
+    yomi: "シャイアン",
+    type: "SR",
+    uniqueKeyOptions: [
+      "照れ屋注意",
+      "自由本能",
+      "勇気の一歩",
+      "コミュ障",
+      "強靭メンタル",
+      "全集中",
+    ],
+  },
+  {
+    name: "劉蒔",
+    yomi: "リュウシ",
+    type: "SR",
+    uniqueKeyOptions: [
+      "相乗効果",
+      "百発百中",
+      "大盤振る舞い",
+      "不屈の心",
+      "資金投入",
+      "一呼百諾",
+    ],
+  },
   // SRキャラ
   {
     name: "グローザ",
