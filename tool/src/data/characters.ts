@@ -582,6 +582,19 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "一呼百諾",
     ],
   },
+  {
+    name: "セクスタンス",
+    yomi: "セクスタンス",
+    type: "近接",
+    uniqueKeyOptions: [
+      "契約の絆",
+      "沈黙の碑文",
+      "懐中調律",
+      "枯死の誓い",
+      "真紅の緞帳",
+      "黒白鳥の羽",
+    ],
+  },
   // SRキャラ
   {
     name: "グローザ",
