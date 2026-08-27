@@ -233,7 +233,7 @@ const summonColor = (sid: string) => {
 const getSummonOption = (name: string): SummonOption | undefined =>
   SUMMON_OPTIONS.find((o) => o.name === name);
 const aliasForSummon = (name: string | undefined) =>
-  name ? getSummonOption(name)?.alias ?? name : "";
+  name ? (getSummonOption(name)?.alias ?? name) : "";
 
 // アクター識別（キャラ or 召喚物）
 const isSummonId = (id: string) => id.startsWith("s");
@@ -246,7 +246,7 @@ const getCharOption = (name: string): CharacterOption | undefined =>
 
 // グリッド等で表示する別名は候補リスト由来で固定
 const aliasForName = (name: string | undefined): string =>
-  name ? getCharOption(name)?.alias ?? name : "";
+  name ? (getCharOption(name)?.alias ?? name) : "";
 
 const uniqueKeyOptionsForName = (name: string): string[] =>
   getCharOption(name)?.uniqueKeyOptions ?? [];
@@ -256,7 +256,7 @@ const sanitizeUniqueKeys = (name: string, arr: [string?, string?, string?]) => {
   return arr.map((v) => (v && allowed.has(v) ? v : undefined)) as [
     string?,
     string?,
-    string?
+    string?,
   ];
 };
 
@@ -265,7 +265,7 @@ const sanitizeCommonKeys = (arr: [string?, string?, string?]) => {
   return arr.map((v) => (v && allowed.has(v) ? v : undefined)) as [
     string?,
     string?,
-    string?
+    string?,
   ];
 };
 
@@ -279,18 +279,18 @@ export default function App() {
   const collator = useMemo(
     () =>
       new Intl.Collator(["ja", "en"], { numeric: true, sensitivity: "base" }),
-    []
+    [],
   );
 
   const sortedCharacterOptions = useMemo(() => {
     return [...CHARACTER_OPTIONS].sort((a, b) =>
-      collator.compare(a.yomi ?? a.name, b.yomi ?? b.name)
+      collator.compare(a.yomi ?? a.name, b.yomi ?? b.name),
     );
   }, [collator]);
 
   const sortedWeaponNamesForType = (ctype?: string) => {
     const items = WEAPON_OPTIONS.filter((w) => !ctype || w.type === ctype).map(
-      (w) => ({ name: w.name, key: w.yomi ?? w.name })
+      (w) => ({ name: w.name, key: w.yomi ?? w.name }),
     );
     items.sort((a, b) => collator.compare(a.key, b.key));
     return items.map((x) => x.name);
@@ -338,7 +338,7 @@ export default function App() {
 
   const renumberSummons = (
     next: TimelineV1,
-    currentActiveId: string | null
+    currentActiveId: string | null,
   ): { next: TimelineV1; newActiveId: string | null } => {
     // 旧→新IDマップを作成（配列順に s1..sN）
     const idMap = new Map<string, string>();
@@ -350,7 +350,7 @@ export default function App() {
     // 召喚物配列のIDを更新
     if (idMap.size > 0) {
       next.summons = next.summons.map((s) =>
-        idMap.has(s.id) ? { ...s, id: idMap.get(s.id)! } : s
+        idMap.has(s.id) ? { ...s, id: idMap.get(s.id)! } : s,
       );
 
       // placements（prep 含む & 各ターン）を置換
@@ -374,7 +374,7 @@ export default function App() {
 
     const newActiveId =
       currentActiveId && currentActiveId.startsWith("s")
-        ? idMap.get(currentActiveId) ?? currentActiveId
+        ? (idMap.get(currentActiveId) ?? currentActiveId)
         : currentActiveId;
 
     return { next, newActiveId };
@@ -467,7 +467,7 @@ export default function App() {
     setTl((prev) => ({
       ...prev,
       characters: prev.characters.map((c) =>
-        c.id === id ? { ...c, equipment: { ...c.equipment, ...patch } } : c
+        c.id === id ? { ...c, equipment: { ...c.equipment, ...patch } } : c,
       ),
     }));
   };
@@ -483,7 +483,7 @@ export default function App() {
 
       // すでに他キャラがこのセルにいるか？
       const occupiedByOther = Object.entries(t.placements).some(
-        ([cid, pos]) => cid !== activeActorId && pos.x === x && pos.y === y
+        ([cid, pos]) => cid !== activeActorId && pos.x === x && pos.y === y,
       );
       if (occupiedByOther) {
         return prev;
@@ -709,14 +709,14 @@ export default function App() {
                                         weapon,
                                         uniqueKeySet: sanitizeUniqueKeys(
                                           selected,
-                                          cc.equipment.uniqueKeySet
+                                          cc.equipment.uniqueKeySet,
                                         ),
                                         commonKeySet: sanitizeCommonKeys(
-                                          cc.equipment.commonKeySet
+                                          cc.equipment.commonKeySet,
                                         ),
                                       },
                                     }
-                                  : cc
+                                  : cc,
                               ),
                             }));
                           }}
@@ -792,7 +792,7 @@ export default function App() {
                             const value =
                               hasChar &&
                               allowed.includes(c.equipment.weapon ?? "")
-                                ? c.equipment.weapon ?? ""
+                                ? (c.equipment.weapon ?? "")
                                 : "";
                             return (
                               <select
@@ -833,13 +833,13 @@ export default function App() {
                                 : [];
                               const value = c.equipment.uniqueKeySet[i] ?? "";
                               const onChange = (
-                                e: React.ChangeEvent<HTMLSelectElement>
+                                e: React.ChangeEvent<HTMLSelectElement>,
                               ) => {
                                 const v = e.target.value || undefined;
                                 const arr = [...c.equipment.uniqueKeySet] as [
                                   string?,
                                   string?,
-                                  string?
+                                  string?,
                                 ];
                                 arr[i] = v;
                                 setCharacterEquip(c.id, {
@@ -882,13 +882,13 @@ export default function App() {
                               const options = hasChar ? COMMON_KEY_OPTIONS : [];
                               const value = c.equipment.commonKeySet[i] ?? "";
                               const onChange = (
-                                e: React.ChangeEvent<HTMLSelectElement>
+                                e: React.ChangeEvent<HTMLSelectElement>,
                               ) => {
                                 const v = e.target.value || undefined;
                                 const arr = [...c.equipment.commonKeySet] as [
                                   string?,
                                   string?,
-                                  string?
+                                  string?,
                                 ];
                                 arr[i] = v;
                                 setCharacterEquip(c.id, {
@@ -953,7 +953,7 @@ export default function App() {
                     });
                     const r = renumberSummons(
                       next,
-                      /* 現在の選択ID */ activeActorId ?? null
+                      /* 現在の選択ID */ activeActorId ?? null,
                     );
                     if (r.newActiveId !== (activeActorId ?? null))
                       setActiveActorId(r.newActiveId ?? "c1");
@@ -1008,7 +1008,7 @@ export default function App() {
                                       name: value,
                                       alias: aliasForSummon(value),
                                     }
-                                  : x
+                                  : x,
                               );
                               return next;
                             })
@@ -1050,14 +1050,14 @@ export default function App() {
 
                             // 召喚物リストから除外
                             next.summons = (next.summons ?? []).filter(
-                              (x) => x.id !== s.id
+                              (x) => x.id !== s.id,
                             );
                             pruneOrphanPlacements(next);
 
                             // 採番し直し & 選択IDの追随
                             const r = renumberSummons(
                               next,
-                              activeActorId ?? null
+                              activeActorId ?? null,
                             );
                             if (r.newActiveId !== (activeActorId ?? null)) {
                               setActiveActorId(r.newActiveId ?? "c1");
@@ -1325,8 +1325,8 @@ export default function App() {
                                   ? summonColor(cids[0]) + "88"
                                   : slotColor(cids[0]) + "88"
                                 : cids.length > 1
-                                ? "#9ca3af"
-                                : "#f3f4f6";
+                                  ? "#9ca3af"
+                                  : "#f3f4f6";
 
                             return (
                               <td
@@ -1366,20 +1366,22 @@ export default function App() {
                                   isBossCell(cx, ry)
                                     ? "ボス領域（配置不可）"
                                     : activeActorId
-                                    ? "クリックで配置"
-                                    : cids[0]
-                                    ? isSummonId(cids[0])
-                                      ? `クリックで ${aliasForSummon(
-                                          tl.summons?.find(
-                                            (s) => (s.id as string) === cids[0]
-                                          )?.name
-                                        )} を選択`
-                                      : `クリックで ${aliasForName(
-                                          tl.characters?.find(
-                                            (s) => (s.id as string) === cids[0]
-                                          )?.name
-                                        )} を選択`
-                                    : "クリックで選択"
+                                      ? "クリックで配置"
+                                      : cids[0]
+                                        ? isSummonId(cids[0])
+                                          ? `クリックで ${aliasForSummon(
+                                              tl.summons?.find(
+                                                (s) =>
+                                                  (s.id as string) === cids[0],
+                                              )?.name,
+                                            )} を選択`
+                                          : `クリックで ${aliasForName(
+                                              tl.characters?.find(
+                                                (s) =>
+                                                  (s.id as string) === cids[0],
+                                              )?.name,
+                                            )} を選択`
+                                        : "クリックで選択"
                                 }
                               >
                                 {/* 中央表示＆折返し（長い別名対策） */}
@@ -1390,7 +1392,7 @@ export default function App() {
                                       : cid.startsWith("s");
                                     if (isSummon) {
                                       const s = tl.summons?.find(
-                                        (ss) => ss.id === cid
+                                        (ss) => ss.id === cid,
                                       );
                                       if (!s) return null; // ← 孤児は描かない
                                       return (
@@ -1403,7 +1405,7 @@ export default function App() {
                                       );
                                     } else {
                                       const ch = tl.characters.find(
-                                        (c) => c.id === cid
+                                        (c) => c.id === cid,
                                       );
                                       if (!ch) return null; // ← 念のため
                                       return (

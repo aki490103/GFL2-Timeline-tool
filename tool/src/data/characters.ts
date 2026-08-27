@@ -595,6 +595,32 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "黒白鳥の羽",
     ],
   },
+  {
+    name: "Ots-14",
+    yomi: "Ots-14",
+    type: "AR",
+    uniqueKeyOptions: [
+      "略奪者の歩み",
+      "自己肯定感",
+      "執着心",
+      "完璧な作戦",
+      "全てを賭して",
+      "破滅への渇望",
+    ],
+  },
+  {
+    name: "ネメシス・グノーシス",
+    yomi: "ネメシス・グノーシス",
+    type: "SR",
+    uniqueKeyOptions: [
+      "帰還の錨",
+      "賢明なる判断",
+      "放浪者の本能",
+      "免疫体の血脈",
+      "預言者の独白",
+      "ヒガンの祝福",
+    ],
+  },
   // SRキャラ
   {
     name: "グローザ",
