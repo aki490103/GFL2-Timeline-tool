@@ -231,6 +231,16 @@ export const WEAPON_OPTIONS: WeaponOption[] = [
     yomi: "ヴェスパーローズ",
     type: "近接",
   },
+  {
+    name: "カンピドリオ",
+    yomi: "カンピドリオ",
+    type: "AR",
+  },
+  {
+    name: "シビュラ",
+    yomi: "シビュラ",
+    type: "SR",
+  },
   // 走行計画武器
   {
     name: "PapaFigo",
