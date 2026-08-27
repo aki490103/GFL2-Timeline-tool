@@ -596,8 +596,8 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
     ],
   },
   {
-    name: "Ots-14",
-    yomi: "Ots-14",
+    name: "OTs-14",
+    yomi: "ots-14",
     type: "AR",
     uniqueKeyOptions: [
       "略奪者の歩み",
