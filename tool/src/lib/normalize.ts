@@ -14,6 +14,7 @@ import {
   slotColor,
 } from "./defaults";
 import { GRID_MAX, GRID_MIN, defaultBoss, defaultGrid } from "./grid";
+import { asArray, asInt, asString, clamp, isRecord } from "./guards";
 import type {
   BossArea,
   Character,
@@ -26,23 +27,6 @@ import type {
   Turn,
   TurnIndex,
 } from "./types";
-
-// ===============================
-// プリミティブ
-// ===============================
-const isRecord = (v: unknown): v is Record<string, unknown> =>
-  typeof v === "object" && v !== null && !Array.isArray(v);
-
-const asString = (v: unknown, fallback = ""): string =>
-  typeof v === "string" ? v : fallback;
-
-const asInt = (v: unknown, fallback: number): number =>
-  typeof v === "number" && Number.isFinite(v) ? Math.trunc(v) : fallback;
-
-const clamp = (n: number, min: number, max: number) =>
-  Math.min(max, Math.max(min, n));
-
-const asArray = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 
 // ===============================
 // 各パーツ
@@ -169,7 +153,8 @@ export const normalizeTimeline = (input: unknown): TimelineV1 => {
 
   const tl: TimelineV1 = {
     v: 1,
-    title: typeof src.title === "string" ? src.title : undefined,
+    // 正規化後は常に文字列。undefined と "" が混在すると往復で形が変わる
+    title: asString(src.title),
     grid,
     boss: normalizeBoss(src.boss, grid),
     characters: CHAR_SLOT_IDS.map((id, i) =>

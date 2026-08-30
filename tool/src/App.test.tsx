@@ -9,8 +9,8 @@ import {
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import App from "./App";
-import { inflate } from "pako";
-import { b64u, encodeTL } from "./lib/codec";
+import { deflate } from "pako";
+import { b64u, decodeTL, encodeTL } from "./lib/codec";
 import { makeDefaultTL } from "./lib/defaults";
 
 const setHash = (hash: string) => {
@@ -24,15 +24,9 @@ beforeEach(() => {
 
 afterEach(cleanup);
 
-/**
- * URL ハッシュを（正規化を通さず）そのままデコードする。
- * decodeTL は normalizeTimeline を通すため、書き込まれた不正データが
- * 消えてしまい検証にならない。
- */
-const rawPayload = () =>
-  JSON.parse(
-    new TextDecoder().decode(inflate(b64u.dec(window.location.hash.slice(4)))),
-  );
+/** 中身が壊れた v2 ハッシュを組み立てる */
+const brokenHash = (payload: unknown) =>
+  "#v2:" + b64u.enc(deflate(new TextEncoder().encode(JSON.stringify(payload))));
 
 /** 盤面のセル（行ヘッダを除いた td）を取得する */
 const boardCells = () =>
@@ -123,13 +117,13 @@ describe("URL 復元", () => {
 
   // 修正前は grid / turns 欠落のまま描画に進んで例外になっていた
   it("壊れたハッシュで開いても落ちず、既定TLで立ち上がる", () => {
-    setHash("#" + encodeTL({ v: 1 } as never));
+    setHash(brokenHash([2]));
     render(<App />);
     expect(boardCells()).toHaveLength(19 * 19);
   });
 
   it("解読できないハッシュは無視される", () => {
-    setHash("#v1:!!!!not-base64!!!!");
+    setHash("#v2:!!!!not-base64!!!!");
     render(<App />);
     expect(boardCells()).toHaveLength(19 * 19);
   });
@@ -201,28 +195,24 @@ describe("回帰: 召喚物の削除と選択の追随", () => {
     expect(cellAt(0, 0).textContent).toBe("");
   });
 
-  it("最後の1件を削除すると選択が解除され、幽霊配置がURLに残らない", async () => {
+  it("最後の1件を削除しても選択が残らない（再追加時に勝手に配置されない）", async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole("button", { name: "召喚物を追加" }));
+    const add = screen.getByRole("button", { name: "召喚物を追加" });
+    await user.click(add);
     await user.click(screen.getByText("S1"));
     await user.click(
       within(summonCard("S1")).getByRole("button", { name: "削除" }),
     );
     expect(screen.getByText("（まだありません）")).toBeInTheDocument();
 
+    // 修正前は選択が消えた s1 を指したままで、ここで placements["s1"] が
+    // 書き込まれていた。画面には出ないが、召喚物を追加し直した瞬間に
+    // 置いた覚えのない召喚物として現れる。
     await user.click(cellAt(0, 0));
-    expect(cellAt(0, 0).textContent).toBe("");
+    await user.click(add);
 
-    // 画面には出ないが、修正前は存在しない s1 の配置が書き込まれ
-    // 共有URLにそのまま載っていた
-    await waitFor(
-      () => {
-        expect(window.location.hash).toMatch(/^#v1:/);
-        expect(rawPayload().prep.placements).toEqual({});
-      },
-      { timeout: 3000 },
-    );
+    expect(cellAt(0, 0).textContent).toBe("");
   });
 });
 
@@ -240,8 +230,10 @@ describe("回帰: 編集内容の URL への反映", () => {
     // リロードやタブ復元で編集内容が失われていた
     await waitFor(
       () => {
-        expect(window.location.hash).toMatch(/^#v1:/);
-        expect(rawPayload().title).toBe("オートで同期される");
+        expect(window.location.hash).toMatch(/^#v2:/);
+        expect(decodeTL(window.location.hash)?.title).toBe(
+          "オートで同期される",
+        );
       },
       { timeout: 3000 },
     );
@@ -253,7 +245,7 @@ describe("回帰: 編集内容の URL への反映", () => {
     await user.selectOptions(screen.getAllByRole("combobox")[0], "ヴェプリー");
     await user.click(screen.getAllByRole("button", { name: "キャラ配置" })[0]);
     await user.click(cellAt(7, 2));
-    await waitFor(() => expect(window.location.hash).toMatch(/^#v1:/), {
+    await waitFor(() => expect(window.location.hash).toMatch(/^#v2:/), {
       timeout: 3000,
     });
 
@@ -267,7 +259,7 @@ describe("回帰: 編集内容の URL への反映", () => {
     const before = window.history.length;
     render(<App />);
     await user.type(screen.getByPlaceholderText("TLタイトル"), "abc");
-    await waitFor(() => expect(window.location.hash).toMatch(/^#v1:/), {
+    await waitFor(() => expect(window.location.hash).toMatch(/^#v2:/), {
       timeout: 3000,
     });
     expect(window.history.length).toBe(before);

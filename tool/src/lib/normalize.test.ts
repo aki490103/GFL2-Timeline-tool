@@ -254,8 +254,9 @@ describe("normalizeTimeline", () => {
     });
   });
 
-  it("title は文字列のときだけ残る", () => {
+  it('title は常に文字列になる（undefined と "" を混在させない）', () => {
     expect(normalizeTimeline({ title: "編成A" }).title).toBe("編成A");
-    expect(normalizeTimeline({ title: 123 }).title).toBeUndefined();
+    expect(normalizeTimeline({ title: 123 }).title).toBe("");
+    expect(normalizeTimeline({}).title).toBe("");
   });
 });
