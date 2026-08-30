@@ -19,5 +19,10 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // 依存の宣言漏れは「操作しても画面が更新されない」バグに直結するため
+      // 警告ではなくエラー扱いにする
+      "react-hooks/exhaustive-deps": "error",
+    },
   },
 ]);

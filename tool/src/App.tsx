@@ -1,273 +1,48 @@
 import React, { useEffect, useMemo, useState } from "react";
-// import { compressToEncodedURIComponent as enc, decompressFromEncodedURIComponent as dec } from 'lz-string';
-import { deflate, inflate } from "pako";
-import { CHARACTER_OPTIONS, type CharacterOption } from "./data/characters";
+import { CHARACTER_OPTIONS } from "./data/characters";
 import { COMMON_KEY_OPTIONS } from "./data/common_keys";
 import { WEAPON_OPTIONS } from "./data/weapons";
-import { SUMMON_OPTIONS, type SummonOption } from "./data/summons";
+import { SUMMON_OPTIONS } from "./data/summons";
+import {
+  addSummon,
+  aliasForName,
+  aliasForSummon,
+  getCharOption,
+  isSummonId,
+  pruneInvalidPlacements,
+  removeSummon,
+  sanitizeCommonKeys,
+  sanitizeUniqueKeys,
+  uniqueKeyOptionsForName,
+} from "./lib/actors";
+import { encodeTL, decodeTL } from "./lib/codec";
+import {
+  LIMIT_BREAK_MAX,
+  MAX_SUMMONS,
+  makeDefaultTL,
+  slotColor,
+  summonColor,
+} from "./lib/defaults";
+import {
+  CELL_PX,
+  DESKTOP_MIN_PX,
+  GRID_MAX,
+  GRID_MIN,
+  TURNS,
+  alphaLabel,
+  buildOccupiedMap,
+  cellKey,
+  defaultBoss,
+  isBossCell,
+} from "./lib/grid";
+import { normalizeTimeline } from "./lib/normalize";
+import type { Equipment, Step, TimelineV1, Turn } from "./lib/types";
 
-// ===============================
-// 型定義
-// ===============================
-type Grid = { cols: number; rows: number };
-type BossArea = { x: number; y: number; w: number; h: number };
-type Position = { x: number; y: number };
-type Summon = { id: string; name: string; alias?: string };
+const clampGrid = (n: number) => Math.max(GRID_MIN, Math.min(GRID_MAX, n));
 
-type Equipment = {
-  limitBreak: number;
-  weapon?: string;
-  uniqueKeySet: [string?, string?, string?];
-  commonKeySet: [string?, string?, string?];
-};
-
-type Character = {
-  id: string;
-  name: string;
-  alias?: string;
-  ctype?: string;
-  color: string;
-  equipment: Equipment;
-};
-
-type Step = {
-  order: number;
-  actorId: string;
-  skill: string;
-  note?: string;
-};
-
-type Turn = {
-  index: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
-  placements: Record<string /* actorId */, Position>;
-  steps: Step[];
-};
-
-type TimelineV1 = {
-  v: 1;
-  title?: string;
-  grid: Grid;
-  boss?: BossArea;
-  characters: Character[];
-  summons: Summon[];
-  prep: Turn;
-  turns: [Turn, Turn, Turn, Turn, Turn, Turn, Turn];
-};
-
-// ===============================
-// 初期値
-// ===============================
-const emptyEquip = (): Equipment => ({
-  limitBreak: 0,
-  weapon: "",
-  uniqueKeySet: [undefined, undefined, undefined],
-  commonKeySet: [undefined, undefined, undefined],
-});
-
-const createTurn = (i: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7): Turn => ({
-  index: i,
-  placements: {},
-  steps: [],
-});
-
-const makeDefaultTL = (): TimelineV1 => ({
-  v: 1,
-  title: "新規TL",
-  grid: defaultGrid,
-  boss: defaultBoss(defaultGrid),
-  characters: [
-    {
-      id: "c1",
-      name: "",
-      alias: "",
-      color: "#ef4444",
-      equipment: emptyEquip(),
-    },
-    {
-      id: "c2",
-      name: "",
-      alias: "",
-      color: "#3b82f6",
-      equipment: emptyEquip(),
-    },
-    {
-      id: "c3",
-      name: "",
-      alias: "",
-      color: "#10b981",
-      equipment: emptyEquip(),
-    },
-    {
-      id: "c4",
-      name: "",
-      alias: "",
-      color: "#f59e0b",
-      equipment: emptyEquip(),
-    },
-    {
-      id: "c5",
-      name: "",
-      alias: "",
-      color: "#8b5cf6",
-      equipment: emptyEquip(),
-    },
-  ],
-  summons: [],
-  prep: createTurn(0),
-  turns: [
-    createTurn(1),
-    createTurn(2),
-    createTurn(3),
-    createTurn(4),
-    createTurn(5),
-    createTurn(6),
-    createTurn(7),
-  ],
-});
-
-// ===============================
-// URLエンコード/デコード
-// ===============================
-// base64url
-const b64u = {
-  enc: (bytes: Uint8Array) =>
-    btoa(String.fromCharCode(...bytes))
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=+$/, ""),
-  dec: (str: string) => {
-    const pad = str.length % 4 ? "=".repeat(4 - (str.length % 4)) : "";
-    const b64 = str.replace(/-/g, "+").replace(/_/g, "/") + pad;
-    const bin = atob(b64);
-    const out = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-    return out;
-  },
-};
-const encodeTL = (tl: TimelineV1) => {
-  const json = JSON.stringify(tl);
-  const utf8 = new TextEncoder().encode(json);
-  const z = deflate(utf8);
-  return "v1:" + b64u.enc(z);
-};
-
-const decodeTL = (hash: string): TimelineV1 | null => {
-  if (!hash.startsWith("#v1:")) return null;
-  try {
-    const raw = b64u.dec(hash.slice(4));
-    const utf8 = inflate(raw);
-    const json = new TextDecoder().decode(utf8);
-    const obj = JSON.parse(json);
-    if (obj?.v === 1) return obj as TimelineV1;
-  } catch (e) {
-    console.error("Failed to decode TL from hash:", e);
-  }
-  return null;
-};
-
-// const encodeTL = (tl: TimelineV1) => `v1:` + enc(JSON.stringify(tl));
-// const decodeTL = (hash: string): TimelineV1 | null => {
-//   if (!hash.startsWith('#v1:')) return null;
-//   try {
-//     const json = dec(hash.slice(4));
-//     if (!json) return null;
-//     const obj = JSON.parse(json);
-//     if (obj?.v === 1) return obj as TimelineV1;
-//   } catch (e) {
-//     console.error('Failed to decode TL from hash:', e);
-//     return null;
-//   }
-//   return null;
-// };
-
-const cellKey = (x: number, y: number) => `${x},${y}`;
-const defaultGrid = { cols: 19, rows: 19 };
-const defaultBoss = (g: Grid): BossArea => {
-  // 盤中央 3×3（奇数グリッド想定）
-  const startX = Math.floor(g.cols / 2) - 1;
-  const startY = Math.floor(g.rows / 2) - 1;
-  return { x: Math.max(0, startX), y: Math.max(0, startY), w: 3, h: 3 };
-};
-const TURNS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
-const CELL_PX = 55;
-const DESKTOP_MIN_PX = 1280;
-const alphaLabel = (n: number) => {
-  let s = "";
-  let x = n;
-  while (x >= 0) {
-    s = String.fromCharCode(65 + (x % 26)) + s; // 65 = 'A'
-    x = Math.floor(x / 26) - 1;
-  }
-  return s;
-};
-
-const SLOT_COLORS: Record<string, string> = {
-  c1: "#ef4444", // 赤
-  c2: "#3b82f6", // 青
-  c3: "#10b981", // 緑
-  c4: "#f59e0b", // 橙
-  c5: "#8b5cf6", // 紫
-};
-const slotColor = (id: string) => SLOT_COLORS[id] ?? "#6b7280";
-
-// 召喚物の固定色（s1..s10 用）
-const SUMMON_COLORS = [
-  "#06b6d4",
-  "#14b8a6",
-  "#eab308",
-  "#f97316",
-  "#a855f7",
-  "#22c55e",
-  "#f43f5e",
-  "#0ea5e9",
-  "#84cc16",
-  "#d946ef",
-];
-const summonColor = (sid: string) => {
-  const m = /^s(\d+)$/.exec(sid);
-  if (!m) return "#64748b";
-  const i = (parseInt(m[1], 10) - 1) % SUMMON_COLORS.length;
-  return SUMMON_COLORS[i];
-};
-
-const getSummonOption = (name: string): SummonOption | undefined =>
-  SUMMON_OPTIONS.find((o) => o.name === name);
-const aliasForSummon = (name: string | undefined) =>
-  name ? (getSummonOption(name)?.alias ?? name) : "";
-
-// アクター識別（キャラ or 召喚物）
-const isSummonId = (id: string) => id.startsWith("s");
-
-// const weaponNamesForType = (ctype?: string) =>
-//   WEAPON_OPTIONS.filter((w) => !ctype || w.type === ctype).map((w) => w.name);
-
-const getCharOption = (name: string): CharacterOption | undefined =>
-  CHARACTER_OPTIONS.find((o) => o.name === name);
-
-// グリッド等で表示する別名は候補リスト由来で固定
-const aliasForName = (name: string | undefined): string =>
-  name ? (getCharOption(name)?.alias ?? name) : "";
-
-const uniqueKeyOptionsForName = (name: string): string[] =>
-  getCharOption(name)?.uniqueKeyOptions ?? [];
-
-const sanitizeUniqueKeys = (name: string, arr: [string?, string?, string?]) => {
-  const allowed = new Set(uniqueKeyOptionsForName(name));
-  return arr.map((v) => (v && allowed.has(v) ? v : undefined)) as [
-    string?,
-    string?,
-    string?,
-  ];
-};
-
-const sanitizeCommonKeys = (arr: [string?, string?, string?]) => {
-  const allowed = new Set(COMMON_KEY_OPTIONS);
-  return arr.map((v) => (v && allowed.has(v) ? v : undefined)) as [
-    string?,
-    string?,
-    string?,
-  ];
-};
+// URL 同期の待ち時間（ms）。Safari の replaceState 制限
+// （30秒に100回）に対して十分な余裕を取る。
+const HASH_SYNC_DEBOUNCE_MS = 500;
 
 // ===============================
 // コンポーネント
@@ -296,11 +71,9 @@ export default function App() {
     return items.map((x) => x.name);
   };
 
-  const [tl, setTl] = useState<TimelineV1>(() => {
-    const restored = decodeTL(location.hash);
-    const base = restored ?? makeDefaultTL();
-    return base.boss ? base : { ...base, boss: defaultBoss(base.grid) };
-  });
+  const [tl, setTl] = useState<TimelineV1>(
+    () => decodeTL(location.hash) ?? makeDefaultTL(),
+  );
 
   const turn = useMemo(() => {
     return activeTurn === 0
@@ -320,10 +93,8 @@ export default function App() {
       : next.turns[(idx - 1) as 0 | 1 | 2 | 3 | 4 | 5 | 6];
   };
 
-  const isBossCell = (x: number, y: number) => {
-    const b = tl.boss ?? defaultBoss(tl.grid);
-    return x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h;
-  };
+  const isBossCellAt = (x: number, y: number) =>
+    isBossCell(tl.boss, tl.grid, x, y);
 
   // ==== TLキャッシュ ====
   type CachedTL = {
@@ -335,50 +106,6 @@ export default function App() {
   const CACHE_KEY = "dlf2_tl_cache_v1";
 
   const uid = () => Math.random().toString(36).slice(2, 10);
-
-  const renumberSummons = (
-    next: TimelineV1,
-    currentActiveId: string | null,
-  ): { next: TimelineV1; newActiveId: string | null } => {
-    // 旧→新IDマップを作成（配列順に s1..sN）
-    const idMap = new Map<string, string>();
-    next.summons.forEach((s, i) => {
-      const newId = `s${i + 1}`;
-      if (s.id !== newId) idMap.set(s.id, newId);
-    });
-
-    // 召喚物配列のIDを更新
-    if (idMap.size > 0) {
-      next.summons = next.summons.map((s) =>
-        idMap.has(s.id) ? { ...s, id: idMap.get(s.id)! } : s,
-      );
-
-      // placements（prep 含む & 各ターン）を置換
-      const replacePlacementKeys = (pl: Record<string, Position>) => {
-        if (!pl) return pl;
-        const out: Record<string, Position> = {};
-        Object.entries(pl).forEach(([k, v]) => {
-          const nk = idMap.get(k) ?? k;
-          out[nk] = v;
-        });
-        return out;
-      };
-
-      if (next.prep)
-        next.prep.placements = replacePlacementKeys(next.prep.placements);
-
-      next.turns.forEach((t) => {
-        t.placements = replacePlacementKeys(t.placements);
-      });
-    }
-
-    const newActiveId =
-      currentActiveId && currentActiveId.startsWith("s")
-        ? (idMap.get(currentActiveId) ?? currentActiveId)
-        : currentActiveId;
-
-    return { next, newActiveId };
-  };
 
   const loadCache = (): CachedTL[] => {
     try {
@@ -413,9 +140,11 @@ export default function App() {
   const loadTL = (id: string) => {
     const item = savedList.find((x) => x.id === id);
     if (!item) return;
-    setTl(item.data);
+    // localStorage の中身も古い形式でありうるので正規化して読み込む。
+    // ハッシュへの反映は上の同期 effect が行う。
+    setTl(normalizeTimeline(item.data));
     setActiveTurn(0);
-    location.hash = "#" + encodeTL(item.data);
+    setActiveActorId(null);
   };
 
   // 削除
@@ -425,43 +154,40 @@ export default function App() {
     saveCache(next);
   };
 
-  // ハッシュからの復元（リンクを開いた時や手動書換え時）
+  // ハッシュからの復元（リンクを開いた時や手動書換え時）。
+  // 欠損の補完・不正値の除去は decodeTL 内の normalizeTimeline が担う。
   useEffect(() => {
     const onHash = () => {
       const restored = decodeTL(location.hash);
-      if (restored) {
-        setTl(() => {
-          const base = restored;
-          return base.boss ? base : { ...base, boss: defaultBoss(base.grid) }; // ★ 補完
-        });
-      }
+      if (restored) setTl(restored);
     };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
+  // 編集内容を常にアドレスバーへ反映する。
+  // これが無いとリロードやタブ復元で作業内容が消える。
+  // replaceState なので履歴は汚さず、hashchange も発火しない。
+  //
+  // デバウンスを短くしすぎないこと: Safari は replaceState を
+  // 「30秒に100回」で打ち切るため、連続入力でも上限に触れない間隔にする。
   useEffect(() => {
-    setTl((prev) => {
-      const next = structuredClone(prev) as TimelineV1;
-      let changed = false;
-      next.characters = next.characters.map((c) => {
-        const a = sanitizeUniqueKeys(c.name, c.equipment.uniqueKeySet);
-        const b = sanitizeCommonKeys(c.equipment.commonKeySet);
-        if (a !== c.equipment.uniqueKeySet || b !== c.equipment.commonKeySet) {
-          changed = true;
-          return {
-            ...c,
-            equipment: { ...c.equipment, uniqueKeySet: a, commonKeySet: b },
-          };
-        }
-        return c;
-      });
-      const before = JSON.stringify(next.turns);
-      pruneOrphanPlacements(next);
-      if (JSON.stringify(next.turns) !== before) changed = true;
-      return changed ? next : prev;
-    });
-  }, []);
+    const timer = setTimeout(() => {
+      const hash = "#" + encodeTL(tl);
+      if (location.hash === hash) return;
+      try {
+        history.replaceState(
+          null,
+          "",
+          location.pathname + location.search + hash,
+        );
+      } catch (e) {
+        // URL 同期に失敗しても編集は続行できるべきなので握りつぶす
+        console.warn("Failed to sync TL to URL:", e);
+      }
+    }, HASH_SYNC_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [tl]);
 
   const setCharacterEquip = (id: string, patch: Partial<Equipment>) => {
     setTl((prev) => ({
@@ -474,7 +200,7 @@ export default function App() {
 
   const placeActiveChar = (x: number, y: number) => {
     // ボス領域は配置不可
-    if (isBossCell(x, y)) return;
+    if (isBossCellAt(x, y)) return;
     if (!activeActorId) return;
 
     setTl((prev) => {
@@ -497,6 +223,25 @@ export default function App() {
       t.placements[activeActorId] = { x, y };
       return next;
     });
+  };
+
+  // 召喚物の追加・削除は「新しい TL と新しい選択ID」を同時に決める必要がある。
+  // setTl の updater 内で setActiveActorId を呼ぶと updater が純粋でなくなるため、
+  // 純粋関数で結果を求めてから両方の state を更新する。
+  const addSummonHandler = () => {
+    if ((tl.summons ?? []).length >= MAX_SUMMONS) {
+      alert(`召喚物は最大${MAX_SUMMONS}個までです`);
+      return;
+    }
+    const { next, newActiveId } = addSummon(tl, activeActorId);
+    setTl(next);
+    setActiveActorId(newActiveId);
+  };
+
+  const removeSummonHandler = (summonId: string) => {
+    const { next, newActiveId } = removeSummon(tl, summonId, activeActorId);
+    setTl(next);
+    setActiveActorId(newActiveId);
   };
 
   const copyTurnFromPrev = () => {
@@ -523,33 +268,12 @@ export default function App() {
     return new Set<string>([...tl.characters.map((c) => c.id), ...sums]);
   }, [tl.characters, tl.summons]);
 
-  const occupiedMap = useMemo(() => {
-    const m = new Map<string, string[]>();
-    Object.entries(turn.placements).forEach(([cid, pos]) => {
-      if (!actorIds.has(cid)) return;
-      // ボス領域は常に無効（古いURL等で入っていても無視）
-      if (isBossCell(pos.x, pos.y)) return;
-      const key = cellKey(pos.x, pos.y);
-      if (!m.has(key)) m.set(key, []);
-      m.get(key)!.push(cid);
-    });
-    return m;
-  }, [actorIds, turn]);
-
-  // 孤児配置掃除（characters/summonsに無いIDを全ターンから削除）
-  const pruneOrphanPlacements = (next: TimelineV1) => {
-    const actorIds = new Set<string>([
-      ...next.characters.map((c) => c.id),
-      ...(next.summons ?? []).map((s) => s.id),
-    ]);
-    const sweep = (t: Turn) => {
-      Object.keys(t.placements).forEach((id) => {
-        if (!actorIds.has(id)) delete t.placements[id];
-      });
-    };
-    if (next.prep) sweep(next.prep);
-    next.turns.forEach(sweep);
-  };
+  // tl.boss / tl.grid を依存に含めないと、ボス領域を動かしても
+  // そこに重なったアクターが盤面に残り続ける
+  const occupiedMap = useMemo(
+    () => buildOccupiedMap(turn.placements, actorIds, tl.boss, tl.grid),
+    [turn, actorIds, tl.boss, tl.grid],
+  );
 
   const copyUrl = async () => {
     const url = `${location.origin}${location.pathname}#${encodeTL(tl)}`;
@@ -739,7 +463,7 @@ export default function App() {
                           setActiveActorId(c.id);
                         }}
                         aria-pressed={activeActorId === c.id}
-                        className={`ml-auto px-2 py-1 text-xs rounded border bg-white text-gray-900 border-gray-300 hover:bg-gray-100'}`}
+                        className="ml-auto px-2 py-1 text-xs rounded border bg-white text-gray-900 border-gray-300 hover:bg-gray-100"
                         title="このキャラを配置"
                       >
                         キャラ配置
@@ -766,7 +490,7 @@ export default function App() {
                         <input
                           type="number"
                           min={0}
-                          max={6}
+                          max={LIMIT_BREAK_MAX}
                           value={c.equipment.limitBreak}
                           onChange={(e) =>
                             setCharacterEquip(c.id, {
@@ -936,30 +660,7 @@ export default function App() {
             <div className="flex items-center gap-3 mb-3">
               <h2 className="font-semibold">召喚物</h2>
               <button
-                onClick={() =>
-                  setTl((prev) => {
-                    if (prev.summons.length >= 10) {
-                      alert("召喚物は最大10個までです");
-                      return prev;
-                    }
-                    const next = structuredClone(prev) as TimelineV1;
-                    const id = `s${next.summons.length + 1}`;
-                    // デフォはリストの先頭
-                    const def = SUMMON_OPTIONS[0]?.name ?? "召喚物";
-                    next.summons.push({
-                      id,
-                      name: def,
-                      alias: aliasForSummon(def),
-                    });
-                    const r = renumberSummons(
-                      next,
-                      /* 現在の選択ID */ activeActorId ?? null,
-                    );
-                    if (r.newActiveId !== (activeActorId ?? null))
-                      setActiveActorId(r.newActiveId ?? "c1");
-                    return r.next;
-                  })
-                }
+                onClick={addSummonHandler}
                 className="ml-auto px-3 py-1 text-sm border rounded bg-white text-gray-900 border-gray-300 hover:bg-gray-100"
               >
                 召喚物を追加
@@ -1033,38 +734,7 @@ export default function App() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setTl((prev) => {
-                            const next = structuredClone(prev) as TimelineV1;
-                            // ★ 全ターン（prep含む）から当該IDの配置を削除
-                            if (next.prep) {
-                              Object.keys(next.prep.placements).forEach((k) => {
-                                if (k === s.id) delete next.prep.placements[k];
-                              });
-                            }
-                            // この召喚物の配置も全ターンから除去
-                            next.turns.forEach((t) => {
-                              Object.keys(t.placements).forEach((k) => {
-                                if (k === s.id) delete t.placements[k];
-                              });
-                            });
-
-                            // 召喚物リストから除外
-                            next.summons = (next.summons ?? []).filter(
-                              (x) => x.id !== s.id,
-                            );
-                            pruneOrphanPlacements(next);
-
-                            // 採番し直し & 選択IDの追随
-                            const r = renumberSummons(
-                              next,
-                              activeActorId ?? null,
-                            );
-                            if (r.newActiveId !== (activeActorId ?? null)) {
-                              setActiveActorId(r.newActiveId ?? "c1");
-                            }
-                            return r.next;
-                            return next;
-                          });
+                          removeSummonHandler(s.id);
                         }}
                         className="ml-auto px-2 py-1 text-red-600 hover:underline"
                       >
@@ -1128,12 +798,12 @@ export default function App() {
               <span className="text-white/80">縦</span>
               <input
                 type="number"
-                min={5}
-                max={35}
+                min={GRID_MIN}
+                max={GRID_MAX}
                 className="w-20 px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
                 value={tl.grid.rows}
                 onChange={(e) => {
-                  const rows = Math.max(5, Math.min(35, +e.target.value || 0));
+                  const rows = clampGrid(+e.target.value || 0);
                   setTl((prev) => ({ ...prev, grid: { ...prev.grid, rows } }));
                 }}
               />
@@ -1143,12 +813,12 @@ export default function App() {
               <span className="text-white/80">横</span>
               <input
                 type="number"
-                min={5}
-                max={35}
+                min={GRID_MIN}
+                max={GRID_MAX}
                 className="w-20 px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
                 value={tl.grid.cols}
                 onChange={(e) => {
-                  const cols = Math.max(5, Math.min(35, +e.target.value || 0));
+                  const cols = clampGrid(+e.target.value || 0);
                   setTl((prev) => ({ ...prev, grid: { ...prev.grid, cols } }));
                 }}
               />
@@ -1245,24 +915,8 @@ export default function App() {
                 title="盤外やボス領域にある配置を削除して整合性を保ちます"
                 onClick={() => {
                   setTl((prev) => {
-                    const next = structuredClone(prev) as TimelineV1;
-                    const g = next.grid;
-                    const b = next.boss ?? defaultBoss(g);
-                    const inGrid = (p: Position) =>
-                      p.x >= 0 && p.x < g.cols && p.y >= 0 && p.y < g.rows;
-                    const inBoss = (p: Position) =>
-                      p.x >= b.x &&
-                      p.x < b.x + b.w &&
-                      p.y >= b.y &&
-                      p.y < b.y + b.h;
-                    const prune = (pl: Record<string, Position>) => {
-                      for (const k of Object.keys(pl)) {
-                        const p = pl[k];
-                        if (!p || !inGrid(p) || inBoss(p)) delete pl[k];
-                      }
-                    };
-                    if (next.prep) prune(next.prep.placements);
-                    next.turns.forEach((t) => prune(t.placements));
+                    const next = structuredClone(prev);
+                    pruneInvalidPlacements(next);
                     return next;
                   });
                 }}
@@ -1332,7 +986,7 @@ export default function App() {
                               <td
                                 key={cx}
                                 onClick={() => {
-                                  if (isBossCell(cx, ry)) return;
+                                  if (isBossCellAt(cx, ry)) return;
 
                                   if (
                                     cids.length === 1 &&
@@ -1350,20 +1004,20 @@ export default function App() {
                                   if (activeActorId) placeActiveChar(cx, ry);
                                 }}
                                 className={`align-top ${
-                                  isBossCell(cx, ry)
+                                  isBossCellAt(cx, ry)
                                     ? "cursor-not-allowed"
                                     : "cursor-pointer"
                                 } rounded-none p-0 border border-gray-700 text-[14px] leading-tight select-none`}
                                 style={{
                                   width: CELL_PX,
                                   height: CELL_PX,
-                                  background: isBossCell(cx, ry)
+                                  background: isBossCellAt(cx, ry)
                                     ? "#d1d5db"
                                     : bg,
                                 }}
                                 role="button"
                                 title={
-                                  isBossCell(cx, ry)
+                                  isBossCellAt(cx, ry)
                                     ? "ボス領域（配置不可）"
                                     : activeActorId
                                       ? "クリックで配置"

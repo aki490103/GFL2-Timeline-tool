@@ -21,6 +21,14 @@ $(TOOL_DIR)/node_modules: $(TOOL_DIR)/package-lock.json
 dev: $(TOOL_DIR)/node_modules ## ローカルで開発サーバーを起動する
 	cd $(TOOL_DIR) && npm run dev
 
+.PHONY: test
+test: $(TOOL_DIR)/node_modules ## テストを実行する
+	cd $(TOOL_DIR) && npm test
+
+.PHONY: lint
+lint: $(TOOL_DIR)/node_modules ## Lint を実行する
+	cd $(TOOL_DIR) && npm run lint
+
 .PHONY: format
 format: ## ソースコードをフォーマットする
 	cd $(TOOL_DIR) && npx --yes $(PRETTIER) --write $(FORMAT_TARGETS)
