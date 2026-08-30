@@ -585,3 +585,79 @@ describe("盤外に隠れた配置", () => {
     expect(screen.getByText(/1件の配置が隠れています/)).toBeInTheDocument();
   });
 });
+
+describe("共有", () => {
+  const setTitle = async (user: UserEvent, text: string) => {
+    const input = screen.getByPlaceholderText("TLタイトル");
+    await user.clear(input);
+    if (text) await user.type(input, text);
+  };
+
+  it("URLをコピーすると、開き直せる共有URLが入る", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await setTitle(user, "深層3層");
+    await user.click(screen.getByRole("button", { name: "URLをコピー" }));
+
+    const copied = await navigator.clipboard.readText();
+    expect(copied).toMatch(/#v2:/);
+    expect(decodeTL("#" + copied.split("#")[1])?.title).toBe("深層3層");
+  });
+
+  // Discord では長い生URLを貼らずに済むよう [表示文字](URL) で包む。
+  // 記法を毎回手で書くのが面倒、というのがこのボタンの理由。
+  it("Discord用リンクは [タイトル](URL) の形でコピーされる", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await setTitle(user, "深層3層");
+    await user.click(
+      screen.getByRole("button", { name: "Discord用リンクをコピー" }),
+    );
+
+    const copied = await navigator.clipboard.readText();
+    expect(copied).toMatch(/^\[深層3層\]\(https?:\/\/[^)]*#v2:[^)]*\)$/);
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Discord用のリンクをコピーしました",
+    );
+    // 記法を剥がすと、そのまま開ける共有URLになっている
+    const url = copied.slice(copied.lastIndexOf("](") + 2, -1);
+    expect(decodeTL("#" + url.split("#")[1])?.title).toBe("深層3層");
+  });
+
+  it("タイトルの括弧で記法が壊れない", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await setTitle(user, "編成(暫定)");
+    await user.click(
+      screen.getByRole("button", { name: "Discord用リンクをコピー" }),
+    );
+    const copied = await navigator.clipboard.readText();
+    expect(copied.startsWith("[編成\\(暫定\\)](")).toBe(true);
+  });
+
+  it("タイトルが空でも既定の表示文字が入る", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await setTitle(user, "");
+    await user.click(
+      screen.getByRole("button", { name: "Discord用リンクをコピー" }),
+    );
+    const copied = await navigator.clipboard.readText();
+    expect(copied.startsWith("[ドールズフロントライン2 編成・TL](")).toBe(true);
+  });
+
+  it("コピーに失敗したら理由を通知する", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: () => Promise.reject(new Error("denied")) },
+      configurable: true,
+    });
+    await user.click(
+      screen.getByRole("button", { name: "Discord用リンクをコピー" }),
+    );
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "アドレスバーのURLをそのまま共有してください",
+    );
+  });
+});

@@ -38,6 +38,7 @@ import {
 } from "./lib/grid";
 import { NumberField } from "./components/NumberField";
 import { normalizeTimeline } from "./lib/normalize";
+import { discordMaskedLink } from "./lib/share";
 import {
   CACHE_KEY,
   MAX_CACHED,
@@ -400,11 +401,13 @@ export default function App() {
     [turn, actorIds, tl.boss, tl.grid],
   );
 
-  const copyUrl = async () => {
-    const url = `${location.origin}${location.pathname}#${encodeTL(tl)}`;
+  const shareUrl = () =>
+    `${location.origin}${location.pathname}#${encodeTL(tl)}`;
+
+  const copyToClipboard = async (text: string, successMessage: string) => {
     try {
-      await navigator.clipboard.writeText(url);
-      showToast("共有URLをコピーしました。");
+      await navigator.clipboard.writeText(text);
+      showToast(successMessage);
     } catch {
       // 編集内容は常にアドレスバーへ同期しているので、そこからコピーできる
       showToast(
@@ -413,6 +416,17 @@ export default function App() {
       );
     }
   };
+
+  const copyUrl = () =>
+    copyToClipboard(shareUrl(), "共有URLをコピーしました。");
+
+  // 共有URLは編成の中身をそのまま載せている都合で長い。Discord では
+  // `[表示文字](URL)` の記法で包むのが実用的なので、その文字列ごとコピーする。
+  const copyDiscordLink = () =>
+    copyToClipboard(
+      discordMaskedLink(tl.title ?? "", shareUrl()),
+      "Discord用のリンクをコピーしました。そのまま貼り付けてください。",
+    );
 
   // カード背景クリックで選択。ただしフォーム要素上のクリックは無視
   const onCardClick = (e: React.MouseEvent, id: string) => {
@@ -509,7 +523,9 @@ export default function App() {
                   <br />
                   編集内容は自動的にアドレスバーのURLへ反映されます。そのままコピーして共有できます
                   <br />
-                  画面下部の「URL生成」を押すと、共有用URLをクリップボードにコピーします
+                  Discordに貼る場合は画面下部の「Discord用リンクをコピー」が便利です。
+                  <code>[タイトル](URL)</code>
+                  の形でコピーされるので、そのまま貼り付ければ長いURLが出ずタイトルだけのリンクになります
                 </p>
                 <p></p>
                 <p>
@@ -1340,9 +1356,17 @@ export default function App() {
                 </button>
                 <button
                   onClick={copyUrl}
-                  className="px-3 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
+                  className="px-3 py-2 rounded border bg-white text-gray-900 border-gray-300 hover:bg-gray-100"
+                  title="共有URLをそのままコピーします"
                 >
-                  URL生成
+                  URLをコピー
+                </button>
+                <button
+                  onClick={copyDiscordLink}
+                  className="px-3 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
+                  title="Discord に貼るとタイトルだけが表示されるリンクになります"
+                >
+                  Discord用リンクをコピー
                 </button>
               </div>
             </div>
