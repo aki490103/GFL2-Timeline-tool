@@ -276,3 +276,45 @@ describe("decodeTL の異常系", () => {
     expect(tl.prep.placements).toEqual({});
   });
 });
+
+describe("空の行動行", () => {
+  // 画面には「※空行は保存されません（未入力はURL縮小のため省略）」と
+  // 書いてあるが、v1 ではそのまま載っていた
+  it("スキルも備考も空の行は URL に載らない", () => {
+    const tl = normalizeTimeline({
+      v: 1,
+      turns: [
+        {
+          steps: [
+            { order: 1, actorId: "c1", skill: "S4", note: "" },
+            { order: 2, actorId: "c2", skill: "", note: "" },
+            { order: 3, actorId: "c3", skill: "", note: "備考だけ" },
+          ],
+        },
+      ],
+    });
+    expect(tl.turns[0].steps).toHaveLength(3);
+
+    const back = decodeTL("#" + encodeTL(tl))!;
+    expect(back.turns[0].steps).toEqual([
+      { order: 1, actorId: "c1", skill: "S4", note: "" },
+      { order: 3, actorId: "c3", skill: "", note: "備考だけ" },
+    ]);
+  });
+
+  it("空行を省くぶん URL が短くなる", () => {
+    const withBlanks = normalizeTimeline({
+      v: 1,
+      turns: Array.from({ length: 7 }, () => ({
+        steps: [1, 2, 3, 4, 5].map((order) => ({
+          order,
+          actorId: `c${order}`,
+          skill: "",
+          note: "",
+        })),
+      })),
+    });
+    const empty = normalizeTimeline({ v: 1 });
+    expect(encodeTL(withBlanks).length).toBe(encodeTL(empty).length);
+  });
+});

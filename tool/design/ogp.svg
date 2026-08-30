@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1200" viewBox="0 0 1200 1200">
+  <rect width="1200" height="1200" fill="#202124"/>
+  <!-- 中央 y=285..915 の帯が OGP(1200x630) として切り出される -->
+  <g transform="translate(0,285)">
+    <rect width="1200" height="630" fill="#202124"/>
+    <g fill="none" stroke="#2b2d31" stroke-width="2">
+      <path d="M0 70h1200M0 140h1200M0 210h1200M0 280h1200M0 350h1200M0 420h1200M0 490h1200M0 560h1200"/>
+      <path d="M70 0v630M140 0v630M210 0v630M280 0v630M350 0v630M420 0v630M490 0v630M560 0v630M630 0v630M700 0v630M770 0v630M840 0v630M910 0v630M980 0v630M1050 0v630M1120 0v630"/>
+    </g>
+
+    <!-- 盤面プレビュー -->
+    <g opacity="0.95">
+      <rect x="820" y="150" width="300" height="330" rx="10" fill="#2b2c2f"/>
+      <rect x="940" y="280" width="60" height="70" fill="#d1d5db" opacity="0.5"/>
+      <rect x="845" y="180" width="55" height="55" rx="6" fill="#ef4444"/>
+      <rect x="915" y="180" width="55" height="55" rx="6" fill="#3b82f6"/>
+      <rect x="985" y="180" width="55" height="55" rx="6" fill="#10b981"/>
+      <rect x="845" y="390" width="55" height="55" rx="6" fill="#f59e0b"/>
+      <rect x="1040" y="390" width="55" height="55" rx="6" fill="#8b5cf6"/>
+      <rect x="1040" y="250" width="55" height="55" rx="6" fill="#06b6d4"/>
+    </g>
+
+    <g font-family="Hiragino Sans, Noto Sans JP, sans-serif" fill="#e8eaed">
+      <text x="80" y="205" font-size="46" font-weight="600" fill="#9aa0a6">ドールズフロントライン2</text>
+      <text x="80" y="295" font-size="66" font-weight="700">編成・TL共有ツール</text>
+      <text x="80" y="380" font-size="30" fill="#9aa0a6">塵煙前線の編成とタイムラインを URL で共有</text>
+      <rect x="80" y="425" width="10" height="34" rx="3" fill="#3b82f6"/>
+      <text x="106" y="452" font-size="27" fill="#9aa0a6">日本鯖「漆黒の宴」</text>
+    </g>
+  </g>
+</svg>

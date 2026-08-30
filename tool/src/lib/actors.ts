@@ -107,6 +107,18 @@ export const renumberSummons = (
   return { next, newActiveId };
 };
 
+/** 盤外・ボス領域に食い込んだ配置の件数（全ターン合計） */
+export const countInvalidPlacements = (tl: TimelineV1): number => {
+  let n = 0;
+  eachTurn(tl, (t) => {
+    for (const p of Object.values(t.placements)) {
+      if (!p || !isInGrid(tl.grid, p) || isBossCell(tl.boss, tl.grid, p.x, p.y))
+        n++;
+    }
+  });
+  return n;
+};
+
 /**
  * 盤外・ボス領域に食い込んだ配置を全ターンから取り除く。
  * `next` は破壊的に更新される。

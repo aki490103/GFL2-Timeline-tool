@@ -7,7 +7,7 @@ import { CHAR_SLOT_IDS } from "./defaults";
 import { defaultBoss } from "./grid";
 import { asArray, asInt, asString, atIndex } from "./guards";
 import { normalizeTimeline } from "./normalize";
-import type { TimelineV1, Turn } from "./types";
+import type { Step, TimelineV1, Turn } from "./types";
 
 // ===============================
 // base64url
@@ -70,17 +70,22 @@ const slotToActor = (slot: unknown, summonCount: number): string | null => {
 const indexOfName = (list: readonly { name: string }[], name?: string) =>
   name ? list.findIndex((o) => o.name === name) : NOT_SELECTED;
 
+/** スキルも備考も空の行は情報を持たないので URL には載せない */
+const isBlankStep = (s: Step) => s.skill === "" && (s.note ?? "") === "";
+
 const encodeTurnV2 = (t: Turn, summonCount: number) => [
   Object.entries(t.placements).flatMap(([id, p]) => {
     const slot = actorToSlot(id, summonCount);
     return slot === NOT_SELECTED ? [] : [slot, p.x, p.y];
   }),
-  t.steps.map((s) => [
-    s.order,
-    actorToSlot(s.actorId, summonCount),
-    s.skill,
-    s.note ?? "",
-  ]),
+  t.steps
+    .filter((s) => !isBlankStep(s))
+    .map((s) => [
+      s.order,
+      actorToSlot(s.actorId, summonCount),
+      s.skill,
+      s.note ?? "",
+    ]),
 ];
 
 const encodeV2 = (tl: TimelineV1): unknown[] => {

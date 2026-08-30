@@ -8,6 +8,7 @@ import {
   aliasForName,
   aliasForSummon,
   getCharOption,
+  countInvalidPlacements,
   isSummonId,
   pruneInvalidPlacements,
   removeSummon,
@@ -35,10 +36,29 @@ import {
   defaultBoss,
   isBossCell,
 } from "./lib/grid";
+import { NumberField } from "./components/NumberField";
 import { normalizeTimeline } from "./lib/normalize";
-import type { Equipment, Step, TimelineV1, Turn } from "./lib/types";
+import {
+  CACHE_KEY,
+  MAX_CACHED,
+  parseCache,
+  upsertCache,
+  type CachedTL,
+} from "./lib/storage";
+import type {
+  BossArea,
+  Equipment,
+  Position,
+  Step,
+  TimelineV1,
+  Turn,
+} from "./lib/types";
 
-const clampGrid = (n: number) => Math.max(GRID_MIN, Math.min(GRID_MAX, n));
+const TURN_PANEL_ID = "turn-panel";
+const turnTabId = (i: number) => `turn-tab-${i}`;
+
+type Toast = { text: string; kind: "info" | "error"; at: number };
+const TOAST_DURATION_MS = 4000;
 
 // URL 同期の待ち時間（ms）。Safari の replaceState 制限
 // （30秒に100回）に対して十分な余裕を取る。
@@ -49,6 +69,18 @@ const HASH_SYNC_DEBOUNCE_MS = 500;
 // ===============================
 export default function App() {
   const [activeTurn, setActiveTurn] = useState<number>(0);
+
+  // alert / prompt はモーダルで操作を止めてしまうため、
+  // 画面隅の非ブロッキングな通知に置き換える
+  const [toast, setToast] = useState<Toast | null>(null);
+  const showToast = (text: string, kind: Toast["kind"] = "info") =>
+    setToast({ text, kind, at: Date.now() });
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), TOAST_DURATION_MS);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   // 並び替え用 Collator
   const collator = useMemo(
@@ -96,44 +128,113 @@ export default function App() {
   const isBossCellAt = (x: number, y: number) =>
     isBossCell(tl.boss, tl.grid, x, y);
 
-  // ==== TLキャッシュ ====
-  type CachedTL = {
-    id: string;
-    title: string;
-    data: TimelineV1;
-    savedAt: number;
+  // タブは左右キーで移動できるのが WAI-ARIA の tabs パターン
+  const onTabKeyDown = (e: React.KeyboardEvent) => {
+    const delta =
+      e.key === "ArrowRight"
+        ? 1
+        : e.key === "ArrowLeft"
+          ? -1
+          : e.key === "Home"
+            ? -TURNS.length
+            : e.key === "End"
+              ? TURNS.length
+              : 0;
+    if (!delta) return;
+    e.preventDefault();
+    const next = Math.max(0, Math.min(TURNS.length - 1, activeTurn + delta));
+    setActiveTurn(next);
+    document.getElementById(turnTabId(next))?.focus();
   };
-  const CACHE_KEY = "dlf2_tl_cache_v1";
 
-  const uid = () => Math.random().toString(36).slice(2, 10);
+  /** 盤面のうちタブ順に入れる1マス（roving tabindex）。361マスを全てタブ対象にしない */
+  const [focusedCell, setFocusedCell] = useState<Position>({ x: 0, y: 0 });
+  const focusX = Math.min(focusedCell.x, tl.grid.cols - 1);
+  const focusY = Math.min(focusedCell.y, tl.grid.rows - 1);
 
-  const loadCache = (): CachedTL[] => {
-    try {
-      const raw = localStorage.getItem(CACHE_KEY);
-      if (!raw) return [];
-      const arr = JSON.parse(raw) as CachedTL[];
-      return Array.isArray(arr) ? arr : [];
-    } catch {
-      return [];
+  const moveFocus = (x: number, y: number) => {
+    const nx = Math.max(0, Math.min(tl.grid.cols - 1, x));
+    const ny = Math.max(0, Math.min(tl.grid.rows - 1, y));
+    setFocusedCell({ x: nx, y: ny });
+    // 再レンダー前でも tabIndex=-1 の要素にはフォーカスできる
+    document.querySelector<HTMLElement>(`[data-cell="${nx},${ny}"]`)?.focus();
+  };
+
+  const onCellKeyDown = (e: React.KeyboardEvent, x: number, y: number) => {
+    switch (e.key) {
+      case "ArrowLeft":
+        e.preventDefault();
+        return moveFocus(x - 1, y);
+      case "ArrowRight":
+        e.preventDefault();
+        return moveFocus(x + 1, y);
+      case "ArrowUp":
+        e.preventDefault();
+        return moveFocus(x, y - 1);
+      case "ArrowDown":
+        e.preventDefault();
+        return moveFocus(x, y + 1);
+      case "Home":
+        e.preventDefault();
+        return moveFocus(0, y);
+      case "End":
+        e.preventDefault();
+        return moveFocus(tl.grid.cols - 1, y);
+      case "Enter":
+      case " ":
+        e.preventDefault();
+        return activateCell(x, y);
     }
   };
-  const saveCache = (list: CachedTL[]) => {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(list));
-  };
 
-  const [savedList, setSavedList] = useState<CachedTL[]>(() => loadCache());
+  // ==== TLキャッシュ（ブラウザ保存） ====
+  const uid = () => Math.random().toString(36).slice(2, 10);
+
+  const [savedList, setSavedList] = useState<CachedTL[]>(() => {
+    try {
+      return parseCache(localStorage.getItem(CACHE_KEY));
+    } catch {
+      // プライベートモード等で localStorage 自体が触れないことがある
+      return [];
+    }
+  });
+
+  /** 保存に成功したら true。失敗時はトーストで知らせる */
+  const persistCache = (list: CachedTL[]): boolean => {
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify(list));
+      return true;
+    } catch (e) {
+      console.error("Failed to persist TL cache:", e);
+      showToast(
+        "ブラウザに保存できませんでした。保存領域がいっぱいか、プライベートモードの可能性があります。",
+        "error",
+      );
+      return false;
+    }
+  };
 
   const saveCurrentTL = () => {
     const title = (tl.title ?? "").trim();
     if (!title) {
-      alert("タイトルを入力してください。");
+      showToast("タイトルを入力してください。", "error");
       return;
     }
-    const item: CachedTL = { id: uid(), title, data: tl, savedAt: Date.now() };
-    const next = [item, ...savedList].slice(0, 50);
-    setSavedList(next);
-    saveCache(next);
-    alert("ローカルに保存しました。");
+    const { list, overwrote, dropped } = upsertCache(savedList, {
+      id: uid(),
+      title,
+      data: tl,
+      savedAt: Date.now(),
+    });
+    if (!persistCache(list)) return;
+    setSavedList(list);
+    showToast(
+      overwrote
+        ? `「${title}」を上書き保存しました。`
+        : dropped > 0
+          ? `保存しました。上限${MAX_CACHED}件を超えたため古い${dropped}件を削除しました。`
+          : "ブラウザに保存しました。",
+    );
   };
 
   // 呼び出し
@@ -150,8 +251,8 @@ export default function App() {
   // 削除
   const deleteTL = (id: string) => {
     const next = savedList.filter((x) => x.id !== id);
+    if (!persistCache(next)) return;
     setSavedList(next);
-    saveCache(next);
   };
 
   // ハッシュからの復元（リンクを開いた時や手動書換え時）。
@@ -230,7 +331,7 @@ export default function App() {
   // 純粋関数で結果を求めてから両方の state を更新する。
   const addSummonHandler = () => {
     if ((tl.summons ?? []).length >= MAX_SUMMONS) {
-      alert(`召喚物は最大${MAX_SUMMONS}個までです`);
+      showToast(`召喚物は最大${MAX_SUMMONS}個までです。`, "error");
       return;
     }
     const { next, newActiveId } = addSummon(tl, activeActorId);
@@ -243,6 +344,28 @@ export default function App() {
     setTl(next);
     setActiveActorId(newActiveId);
   };
+
+  /** 盤面のマスを操作したときの挙動（クリックとキーボードで共通） */
+  const activateCell = (x: number, y: number) => {
+    if (isBossCellAt(x, y)) return;
+    const cids = occupiedMap.get(cellKey(x, y)) ?? [];
+    // 他のアクターが居るマスは「選択の切り替え」、それ以外は「配置」
+    if (cids.length === 1 && cids[0] !== activeActorId) {
+      setActiveActorId(cids[0]);
+      return;
+    }
+    if (!activeActorId && cids.length >= 1) {
+      setActiveActorId(cids[0]);
+      return;
+    }
+    if (activeActorId) placeActiveChar(x, y);
+  };
+
+  /** 盤面やツールチップに出す表示名 */
+  const actorLabel = (cid: string): string =>
+    isSummonId(cid)
+      ? aliasForSummon(tl.summons?.find((s) => s.id === cid)?.name)
+      : aliasForName(tl.characters.find((c) => c.id === cid)?.name);
 
   const copyTurnFromPrev = () => {
     if (activeTurn === 0) return;
@@ -270,6 +393,8 @@ export default function App() {
 
   // tl.boss / tl.grid を依存に含めないと、ボス領域を動かしても
   // そこに重なったアクターが盤面に残り続ける
+  const invalidPlacementCount = useMemo(() => countInvalidPlacements(tl), [tl]);
+
   const occupiedMap = useMemo(
     () => buildOccupiedMap(turn.placements, actorIds, tl.boss, tl.grid),
     [turn, actorIds, tl.boss, tl.grid],
@@ -279,9 +404,13 @@ export default function App() {
     const url = `${location.origin}${location.pathname}#${encodeTL(tl)}`;
     try {
       await navigator.clipboard.writeText(url);
-      alert("共有URLをコピーしました！");
+      showToast("共有URLをコピーしました。");
     } catch {
-      prompt("コピーに失敗しました。手動でコピーしてください", url);
+      // 編集内容は常にアドレスバーへ同期しているので、そこからコピーできる
+      showToast(
+        "コピーできませんでした。アドレスバーのURLをそのまま共有してください。",
+        "error",
+      );
     }
   };
 
@@ -294,6 +423,24 @@ export default function App() {
 
   return (
     <div className="min-h-screen p-6 bg-[#202124] text-[#e8eaed]">
+      {/* 通知（alert の置き換え）。操作を止めない */}
+      <div
+        role="status"
+        aria-live="polite"
+        className="fixed bottom-4 right-4 z-50 pointer-events-none"
+      >
+        {toast && (
+          <div
+            className={`max-w-sm rounded-lg px-4 py-3 text-sm shadow-lg border ${
+              toast.kind === "error"
+                ? "bg-red-950 border-red-700 text-red-100"
+                : "bg-[#2b2c2f] border-gray-600 text-[#e8eaed]"
+            }`}
+          >
+            {toast.text}
+          </div>
+        )}
+      </div>
       <div className="w-full overflow-x-auto">
         <div
           className="max-w-6xl mx-auto space-y-6"
@@ -304,15 +451,18 @@ export default function App() {
             <h1 className="text-2xl font-bold tracking-wide">
               ドールズフロントライン2 編成・TL共有ツール（β版）
             </h1>
-            <span className="text-xs text-gray-400">v0.0.1</span>
+            <span className="text-xs text-gray-400">v{__APP_VERSION__}</span>
           </header>
 
           {/* 注意 */}
           <section className="text-sm text-white">
-            <ul className="list-disc ml-5 mt-1">
-              これはドールズフロントライン2の塵煙前線においてチームへ編成やTLなどを共有する目的で作られたものです
-              <br />
-              本ツールは日本鯖のチーム「漆黒の宴」が作成、管理しています
+            <ul className="list-disc ml-5 mt-1 space-y-1">
+              <li>
+                これはドールズフロントライン2の塵煙前線においてチームへ編成やTLなどを共有する目的で作られたものです
+              </li>
+              <li>
+                本ツールは日本鯖のチーム「漆黒の宴」が作成、管理しています
+              </li>
             </ul>
           </section>
 
@@ -349,14 +499,17 @@ export default function App() {
                   一度キャラを配置した後はキャラのマスをクリックすることでそのキャラを選択し移動することができます
                   <br />
                   次のターンにキャラを配置したい場合は「前ターンからコピー」ボタンをクリックした後、次のターンでキャラを移動することで素早く配置することが可能です
+                  <br />
+                  盤面は矢印キーでも移動でき、Enter または Space
+                  で配置・選択ができます
                 </p>
                 <p></p>
                 <p>
                   <strong>共有方法</strong>
                   <br />
-                  1. 画面下部の「保存・共有」でタイトルを入力しURL生成
+                  編集内容は自動的にアドレスバーのURLへ反映されます。そのままコピーして共有できます
                   <br />
-                  2. 自動的にURLがコピーされるので相手に共有
+                  画面下部の「URL生成」を押すと、共有用URLをクリップボードにコピーします
                 </p>
                 <p></p>
                 <p>
@@ -366,7 +519,7 @@ export default function App() {
                   <br />
                   ・ニキータやアンドリスなどの何かを召喚するキャラの場合は召喚物をご利用ください（最大10個まで配置可）
                   <br />
-                  ・共有せずに保存だけ行いたい場合は画面下部で「保存（ブラウザ）」を選択するとブラウザのキャッシュに保存されます（cookieのクリアなどに注意）
+                  ・共有せずに保存だけ行いたい場合は画面下部で「保存（ブラウザ）」を選択するとブラウザのキャッシュに保存されます（cookieのクリアなどに注意）。同じタイトルで保存し直すと上書きされます
                   <br />
                   ・URLに編成のハッシュを埋め込ませる関係上URLが長くなります。もし文字数制限で共有できない場合は外部の短縮URLなどをご利用ください
                   <br />※
@@ -485,21 +638,16 @@ export default function App() {
 
                     {/* 装備（武器：固定リスト） */}
                     <div className="grid sm:grid-cols-2 gap-3 text-sm">
-                      <label className="flex items-center gap-2">
-                        <span className="w-16 text-white">凸</span>
-                        <input
-                          type="number"
-                          min={0}
-                          max={LIMIT_BREAK_MAX}
-                          value={c.equipment.limitBreak}
-                          onChange={(e) =>
-                            setCharacterEquip(c.id, {
-                              limitBreak: +e.target.value,
-                            })
-                          }
-                          className="w-24 px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
-                        />
-                      </label>
+                      <NumberField
+                        label="凸"
+                        value={c.equipment.limitBreak}
+                        min={0}
+                        max={LIMIT_BREAK_MAX}
+                        className="w-24 px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
+                        onCommit={(limitBreak) =>
+                          setCharacterEquip(c.id, { limitBreak })
+                        }
+                      />
 
                       <label className="flex items-center gap-2">
                         <span className="w-16 text-white">武器</span>
@@ -763,7 +911,12 @@ export default function App() {
                     <button
                       key={i}
                       role="tab"
+                      id={turnTabId(i)}
                       aria-selected={selected}
+                      aria-controls={TURN_PANEL_ID}
+                      // 選択中のタブだけをタブ順に入れる（WAI-ARIA の tabs パターン）
+                      tabIndex={selected ? 0 : -1}
+                      onKeyDown={onTabKeyDown}
                       onClick={() => setActiveTurn(i)}
                       className={`px-4 py-2 rounded-t-md border-b-2 whitespace-nowrap
                       ${
@@ -794,131 +947,114 @@ export default function App() {
               </button>
             </div>
             <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
-              {/* rows */}
-              <span className="text-white/80">縦</span>
-              <input
-                type="number"
-                min={GRID_MIN}
-                max={GRID_MAX}
-                className="w-20 px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
+              <NumberField
+                label="縦"
                 value={tl.grid.rows}
-                onChange={(e) => {
-                  const rows = clampGrid(+e.target.value || 0);
-                  setTl((prev) => ({ ...prev, grid: { ...prev.grid, rows } }));
-                }}
-              />
-              <span>×</span>
-
-              {/* cols */}
-              <span className="text-white/80">横</span>
-              <input
-                type="number"
                 min={GRID_MIN}
                 max={GRID_MAX}
                 className="w-20 px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
+                onCommit={(rows) =>
+                  setTl((prev) => ({ ...prev, grid: { ...prev.grid, rows } }))
+                }
+              />
+              <span aria-hidden="true">×</span>
+              <NumberField
+                label="横"
                 value={tl.grid.cols}
-                onChange={(e) => {
-                  const cols = clampGrid(+e.target.value || 0);
-                  setTl((prev) => ({ ...prev, grid: { ...prev.grid, cols } }));
-                }}
+                min={GRID_MIN}
+                max={GRID_MAX}
+                className="w-20 px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
+                onCommit={(cols) =>
+                  setTl((prev) => ({ ...prev, grid: { ...prev.grid, cols } }))
+                }
               />
 
               {/* ボス領域 */}
-              <span className="ml-4 text-white/80">ボス領域</span>
+              <span className="ml-4 text-white/80" id="boss-area-label">
+                ボス領域
+              </span>
               {(() => {
                 const b = tl.boss ?? defaultBoss(tl.grid);
+                const g = tl.grid;
+                // グリッドの外にボスを置けてしまうと、盤面に出ないまま
+                // 配置不可の領域だけが残る
+                const setBoss = (patch: Partial<BossArea>) =>
+                  setTl((prev) => ({
+                    ...prev,
+                    boss: {
+                      ...(prev.boss ?? defaultBoss(prev.grid)),
+                      ...patch,
+                    },
+                  }));
+                const cls =
+                  "w-16 px-2 py-1 border rounded bg-white text-gray-900 border-gray-300";
                 return (
                   <>
-                    <label className="flex items-center gap-1">
-                      <span>X</span>
-                      <input
-                        type="number"
-                        min={0}
-                        className="w-16 px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
-                        value={b.x}
-                        onChange={(e) => {
-                          const x = Math.max(0, +e.target.value || 0);
-                          setTl((prev) => ({
-                            ...prev,
-                            boss: {
-                              ...(prev.boss ?? defaultBoss(prev.grid)),
-                              x,
-                            },
-                          }));
-                        }}
-                      />
-                    </label>
-                    <label className="flex items-center gap-1">
-                      <span>Y</span>
-                      <input
-                        type="number"
-                        min={0}
-                        className="w-16 px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
-                        value={b.y}
-                        onChange={(e) => {
-                          const y = Math.max(0, +e.target.value || 0);
-                          setTl((prev) => ({
-                            ...prev,
-                            boss: {
-                              ...(prev.boss ?? defaultBoss(prev.grid)),
-                              y,
-                            },
-                          }));
-                        }}
-                      />
-                    </label>
-                    <label className="flex items-center gap-1">
-                      <span>W</span>
-                      <input
-                        type="number"
-                        min={1}
-                        className="w-16 px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
-                        value={b.w}
-                        onChange={(e) => {
-                          const w = Math.max(1, +e.target.value || 0);
-                          setTl((prev) => ({
-                            ...prev,
-                            boss: {
-                              ...(prev.boss ?? defaultBoss(prev.grid)),
-                              w,
-                            },
-                          }));
-                        }}
-                      />
-                    </label>
-                    <label className="flex items-center gap-1">
-                      <span>H</span>
-                      <input
-                        type="number"
-                        min={1}
-                        className="w-16 px-2 py-1 border rounded bg-white text-gray-900 border-gray-300"
-                        value={b.h}
-                        onChange={(e) => {
-                          const h = Math.max(1, +e.target.value || 0);
-                          setTl((prev) => ({
-                            ...prev,
-                            boss: {
-                              ...(prev.boss ?? defaultBoss(prev.grid)),
-                              h,
-                            },
-                          }));
-                        }}
-                      />
-                    </label>
+                    <NumberField
+                      label="X"
+                      value={b.x}
+                      min={0}
+                      max={Math.max(0, g.cols - 1)}
+                      className={cls}
+                      labelClassName="flex items-center gap-1"
+                      onCommit={(x) =>
+                        setBoss({ x, w: Math.min(b.w, g.cols - x) })
+                      }
+                    />
+                    <NumberField
+                      label="Y"
+                      value={b.y}
+                      min={0}
+                      max={Math.max(0, g.rows - 1)}
+                      className={cls}
+                      labelClassName="flex items-center gap-1"
+                      onCommit={(y) =>
+                        setBoss({ y, h: Math.min(b.h, g.rows - y) })
+                      }
+                    />
+                    <NumberField
+                      label="W"
+                      value={b.w}
+                      min={1}
+                      max={Math.max(1, g.cols - b.x)}
+                      className={cls}
+                      labelClassName="flex items-center gap-1"
+                      onCommit={(w) => setBoss({ w })}
+                    />
+                    <NumberField
+                      label="H"
+                      value={b.h}
+                      min={1}
+                      max={Math.max(1, g.rows - b.y)}
+                      className={cls}
+                      labelClassName="flex items-center gap-1"
+                      onCommit={(h) => setBoss({ h })}
+                    />
                   </>
                 );
               })()}
 
               {/* はみ出し/ボス被りを一括クリーン */}
+              {/* グリッド縮小やボス移動で盤面から消えた配置はデータには残る。
+                  黙って消すと取り返しがつかないので、件数を出して手動で掃除させる。 */}
+              {invalidPlacementCount > 0 && (
+                <span className="ml-2 text-amber-300">
+                  盤外・ボス領域に{invalidPlacementCount}件の配置が隠れています
+                </span>
+              )}
               <button
-                className="ml-2 px-3 py-1 rounded border bg-white text-gray-900 border-gray-300 hover:bg-gray-100"
+                className="ml-2 px-3 py-1 rounded border bg-white text-gray-900 border-gray-300 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
                 title="盤外やボス領域にある配置を削除して整合性を保ちます"
+                disabled={invalidPlacementCount === 0}
                 onClick={() => {
                   setTl((prev) => {
                     const next = structuredClone(prev);
                     pruneInvalidPlacements(next);
                     return next;
                   });
+                  showToast(
+                    `隠れていた${invalidPlacementCount}件の配置を削除しました。`,
+                  );
                 }}
               >
                 適用
@@ -926,7 +1062,12 @@ export default function App() {
             </div>
             {showGrids && (
               // ① 親を横スクロール可能に
-              <div className="w-full overflow-x-auto">
+              <div
+                className="w-full overflow-x-auto"
+                role="tabpanel"
+                id={TURN_PANEL_ID}
+                aria-labelledby={turnTabId(activeTurn)}
+              >
                 {/* ② テーブルの最小幅 = (左上角セル + 列数) * CELL_PX */}
                 <div
                   className="inline-block"
@@ -934,6 +1075,8 @@ export default function App() {
                 >
                   {/* ③ table は固定レイアウトのまま */}
                   <table
+                    role="grid"
+                    aria-label={`盤面（${activeTurn === 0 ? "準備" : `ターン${activeTurn}`}）`}
                     className="border-collapse table-fixed"
                     // Safari の収縮対策（念のため明示）
                     style={{ tableLayout: "fixed" as const }}
@@ -982,59 +1125,48 @@ export default function App() {
                                   ? "#9ca3af"
                                   : "#f3f4f6";
 
+                            const isBoss = isBossCellAt(cx, ry);
+                            const coord = `${alphaLabel(cx)}${ry + 1}`;
+                            const occupants = cids.map(actorLabel).join("、");
+
                             return (
                               <td
                                 key={cx}
-                                onClick={() => {
-                                  if (isBossCellAt(cx, ry)) return;
-
-                                  if (
-                                    cids.length === 1 &&
-                                    cids[0] !== activeActorId
-                                  ) {
-                                    setActiveActorId(cids[0]);
-                                    return;
-                                  }
-
-                                  if (!activeActorId && cids.length >= 1) {
-                                    setActiveActorId(cids[0]);
-                                    return;
-                                  }
-
-                                  if (activeActorId) placeActiveChar(cx, ry);
-                                }}
+                                data-cell={`${cx},${ry}`}
+                                role="gridcell"
+                                aria-disabled={isBoss || undefined}
+                                aria-label={
+                                  isBoss
+                                    ? `${coord} ボス領域`
+                                    : occupants
+                                      ? `${coord} ${occupants}`
+                                      : `${coord} 空き`
+                                }
+                                // 361マス全てをタブ対象にすると操作不能になるため、
+                                // タブ順に入るのは1マスだけ。移動は矢印キーで行う。
+                                tabIndex={
+                                  cx === focusX && ry === focusY ? 0 : -1
+                                }
+                                onFocus={() => setFocusedCell({ x: cx, y: ry })}
+                                onKeyDown={(e) => onCellKeyDown(e, cx, ry)}
+                                onClick={() => activateCell(cx, ry)}
                                 className={`align-top ${
-                                  isBossCellAt(cx, ry)
+                                  isBoss
                                     ? "cursor-not-allowed"
                                     : "cursor-pointer"
-                                } rounded-none p-0 border border-gray-700 text-[14px] leading-tight select-none`}
+                                } rounded-none p-0 border border-gray-700 text-[14px] leading-tight select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-inset`}
                                 style={{
                                   width: CELL_PX,
                                   height: CELL_PX,
-                                  background: isBossCellAt(cx, ry)
-                                    ? "#d1d5db"
-                                    : bg,
+                                  background: isBoss ? "#d1d5db" : bg,
                                 }}
-                                role="button"
                                 title={
-                                  isBossCellAt(cx, ry)
+                                  isBoss
                                     ? "ボス領域（配置不可）"
                                     : activeActorId
                                       ? "クリックで配置"
-                                      : cids[0]
-                                        ? isSummonId(cids[0])
-                                          ? `クリックで ${aliasForSummon(
-                                              tl.summons?.find(
-                                                (s) =>
-                                                  (s.id as string) === cids[0],
-                                              )?.name,
-                                            )} を選択`
-                                          : `クリックで ${aliasForName(
-                                              tl.characters?.find(
-                                                (s) =>
-                                                  (s.id as string) === cids[0],
-                                              )?.name,
-                                            )} を選択`
+                                      : occupants
+                                        ? `クリックで ${occupants} を選択`
                                         : "クリックで選択"
                                 }
                               >
@@ -1140,9 +1272,11 @@ export default function App() {
                           <option value="" disabled>
                             選択
                           </option>
-                          {tl.characters.map((c) => (
+                          {tl.characters.map((c, ci) => (
                             <option key={c.id} value={c.id}>
-                              {c.name}
+                              {c.name
+                                ? aliasForName(c.name)
+                                : `（キャラ${ci + 1} 未選択）`}
                             </option>
                           ))}
                         </select>

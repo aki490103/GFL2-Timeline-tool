@@ -4,6 +4,7 @@ import {
   addSummon,
   aliasForName,
   aliasForSummon,
+  countInvalidPlacements,
   getCharOption,
   isSummonId,
   pruneInvalidPlacements,
@@ -328,5 +329,34 @@ describe("pruneInvalidPlacements", () => {
     tl.prep.placements = { c1: { x: 9, y: 9 }, c2: { x: 0, y: 0 } };
     pruneInvalidPlacements(tl);
     expect(tl.prep.placements).toEqual({ c2: { x: 0, y: 0 } });
+  });
+});
+
+describe("countInvalidPlacements", () => {
+  it("盤外とボス領域の配置を数える", () => {
+    const tl = makeDefaultTL();
+    tl.grid = { cols: 10, rows: 10 };
+    tl.boss = { x: 4, y: 4, w: 2, h: 2 };
+    tl.prep.placements = {
+      c1: { x: 0, y: 0 }, // 正常
+      c2: { x: 4, y: 4 }, // ボス
+      c3: { x: 99, y: 0 }, // 盤外
+    };
+    tl.turns[0].placements = { c4: { x: 0, y: 99 } }; // 盤外
+    expect(countInvalidPlacements(tl)).toBe(3);
+  });
+
+  it("問題なければ 0", () => {
+    const tl = makeDefaultTL();
+    tl.prep.placements = { c1: { x: 0, y: 0 } };
+    expect(countInvalidPlacements(tl)).toBe(0);
+  });
+
+  it("pruneInvalidPlacements の後は必ず 0 になる", () => {
+    const tl = makeDefaultTL();
+    tl.grid = { cols: 8, rows: 8 };
+    tl.prep.placements = { c1: { x: 20, y: 20 }, c2: { x: 3, y: 3 } };
+    pruneInvalidPlacements(tl);
+    expect(countInvalidPlacements(tl)).toBe(0);
   });
 });
