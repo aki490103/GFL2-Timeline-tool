@@ -29,8 +29,14 @@ test: $(TOOL_DIR)/node_modules ## テストを実行する
 lint: $(TOOL_DIR)/node_modules ## Lint を実行する
 	cd $(TOOL_DIR) && npm run lint
 
+.PHONY: lock
+lock: $(TOOL_DIR)/node_modules ## 共有URLの添字表(order-lock.ts)にデータの追加分を追記する
+	cd $(TOOL_DIR) && UPDATE_ORDER_LOCK=1 npx vitest run src/data/order-lock.sync.test.ts
+	@# 生成直後は未整形なので、単体で実行しても format-check を通る状態にしておく
+	cd $(TOOL_DIR) && npx --yes $(PRETTIER) --write --log-level warn src/data/order-lock.ts
+
 .PHONY: format
-format: ## ソースコードをフォーマットする
+format: lock ## ソースコードをフォーマットする（添字表の更新込み）
 	cd $(TOOL_DIR) && npx --yes $(PRETTIER) --write $(FORMAT_TARGETS)
 
 .PHONY: format-check

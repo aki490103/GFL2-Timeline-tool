@@ -1,18 +1,87 @@
-export type CharacterOption = {
-  name: string;
-  yomi: string;
-  alias?: string;
-  type: string;
-  uniqueKeyOptions: string[];
+// 自動生成ファイル。手で並び替え・削除しないこと（`make lock` が追記する）。
+//
+// 共有URL(v2) はキャラ名・武器名・キー名を「この表の添字」として埋め込む。
+// したがってここでの位置は公開APIと同じ重みを持つ。
+//
+//   安全 : 末尾への追加（make lock が行う）
+//   安全 : 同じ位置の文字列の書き換え（＝改名）
+//   危険 : 並び替え・途中への挿入・削除
+//          → 既に配布された共有URLが別の編成として開く
+//
+// 画面に出す順序とは無関係なので、src/data/*.ts の並びは自由に変えてよい。
+// 対応する検査は order-lock.sync.test.ts にある。
+
+export type OrderLock = {
+  characters: string[];
+  uniqueKeys: string[][];
+  weapons: string[];
+  commonKeys: string[];
+  summons: string[];
 };
 
-export const CHARACTER_OPTIONS: CharacterOption[] = [
-  // SSRキャラ
-  {
-    name: "ヴェプリー",
-    yomi: "ヴェプリー",
-    type: "SG",
-    uniqueKeyOptions: [
+export const ORDER_LOCK: OrderLock = {
+  characters: [
+    "ヴェプリー",
+    "ペリティア",
+    "トロロ",
+    "サブリナ",
+    "瓊玖",
+    "モシン・ナガン",
+    "ウルリド",
+    "スオミ",
+    "ペーペーシャ",
+    "マキアート",
+    "黛煙",
+    "ドゥシェーヴヌイ",
+    "センタウレイシー",
+    "クルカイ",
+    "ミシュティ",
+    "ヴェクター",
+    "幼熙",
+    "朝暉",
+    "スプリングフィールド",
+    "ペリー",
+    "緋",
+    "秋樺",
+    "ニキータ",
+    "ビヨーカ",
+    "アンドリス",
+    "絳雨",
+    "フローレンス",
+    "リンド",
+    "リヴァ",
+    "レナ",
+    "ロベラ",
+    "ルイス",
+    "サクラ",
+    "アルヴァ",
+    "バチルダ",
+    "ヴォイマスティナ",
+    "レイニー",
+    "ヘレン",
+    "パエトゥーサ",
+    "バスティ",
+    "ローレライ",
+    "ハープシー",
+    "シャイアン",
+    "劉蒔",
+    "セクスタンス",
+    "OTs-14",
+    "ネメシス・グノーシス",
+    "グローザ",
+    "ネメシス",
+    "キャロリック",
+    "コルフェン",
+    "シャークリー",
+    "チータ",
+    "ナガン",
+    "クシーニヤ",
+    "リッタラ",
+    "ロッタ",
+    "ソップ",
+  ],
+  uniqueKeys: [
+    [
       "安全な鑑賞距離",
       "汚染エリアツアー",
       "アイドルの幸運",
@@ -20,12 +89,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "ストレス耐性特訓",
       "舞台堅守",
     ],
-  },
-  {
-    name: "ペリティア",
-    yomi: "ペリティア",
-    type: "MG",
-    uniqueKeyOptions: [
+    [
       "臨時システムメンテナンス",
       "即興追いかけっこ",
       "自動修復プログラム",
@@ -33,12 +97,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "ささやかな平穏",
       "友好的な交流",
     ],
-  },
-  {
-    name: "トロロ",
-    yomi: "トロロ",
-    type: "AR",
-    uniqueKeyOptions: [
+    [
       "彗星一閃",
       "観測の法則",
       "不可視の光線",
@@ -46,12 +105,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "銀河巡航",
       "星食",
     ],
-  },
-  {
-    name: "サブリナ",
-    yomi: "サブリナ",
-    type: "SG",
-    uniqueKeyOptions: [
+    [
       "食べられる幸せ",
       "美味しいものは分ける",
       "お湯は何でも合う",
@@ -59,25 +113,8 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "オーバーカロリー",
       "微妙な味の減量食",
     ],
-  },
-  {
-    name: "瓊玖",
-    yomi: "ケイキュウ",
-    type: "AR",
-    uniqueKeyOptions: [
-      "集中力",
-      "効率的計画",
-      "集中訓練",
-      "弱点マーク",
-      "必要な調整",
-      "安定性",
-    ],
-  },
-  {
-    name: "モシン・ナガン",
-    yomi: "モシンナガン",
-    type: "SR",
-    uniqueKeyOptions: [
+    ["集中力", "効率的計画", "集中訓練", "弱点マーク", "必要な調整", "安定性"],
+    [
       "治安巡回小隊",
       "予備防御装置",
       "秩序維持",
@@ -85,12 +122,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "仕事に集中",
       "機動巡回",
     ],
-  },
-  {
-    name: "ウルリド",
-    yomi: "ウルリド",
-    type: "近接",
-    uniqueKeyOptions: [
+    [
       "迅速行動",
       "獲物追跡",
       "適当な警戒",
@@ -98,12 +130,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "首領の威圧",
       "猟師の勘",
     ],
-  },
-  {
-    name: "スオミ",
-    yomi: "スオミ",
-    type: "SMG",
-    uniqueKeyOptions: [
+    [
       "負けん気",
       "小さな守護者",
       "善意の恩返し",
@@ -111,12 +138,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "倒れるわけには！",
       "後方支援中",
     ],
-  },
-  {
-    name: "ペーペーシャ",
-    yomi: "ペーペーシャ",
-    type: "SMG",
-    uniqueKeyOptions: [
+    [
       "栄光と共に",
       "不屈援護",
       "揺るぎなき信念",
@@ -124,12 +146,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "ちょっと学ばせて",
       "仲間の力",
     ],
-  },
-  {
-    name: "マキアート",
-    yomi: "マキアート",
-    type: "SR",
-    uniqueKeyOptions: [
+    [
       "追加情報",
       "氷とクリーム追加",
       "不屈の一匹狼",
@@ -137,25 +154,8 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "キャラメル入りホットで",
       "絶対集中",
     ],
-  },
-  {
-    name: "黛煙",
-    yomi: "ダイエン",
-    type: "AR",
-    uniqueKeyOptions: [
-      "余韻",
-      "青雲未到",
-      "煙行調",
-      "曼声告白",
-      "破陣",
-      "流芳",
-    ],
-  },
-  {
-    name: "ドゥシェーヴヌイ",
-    yomi: "ドゥシェーヴヌイ",
-    type: "SR",
-    uniqueKeyOptions: [
+    ["余韻", "青雲未到", "煙行調", "曼声告白", "破陣", "流芳"],
+    [
       "祝福の槍",
       "冒険者の意志",
       "魔法の盾",
@@ -163,12 +163,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "賢者の心",
       "聖なる輝き",
     ],
-  },
-  {
-    name: "センタウレイシー",
-    yomi: "センタウレイシー",
-    type: "AR",
-    uniqueKeyOptions: [
+    [
       "食前デザート",
       "メイドの決意",
       "効率的な対応",
@@ -176,12 +171,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "準備万端",
       "ラッキーメニュー",
     ],
-  },
-  {
-    name: "クルカイ",
-    yomi: "クルカイ",
-    type: "AR",
-    uniqueKeyOptions: [
+    [
       "デスチョーク",
       "一拳撃破",
       "手加減なし",
@@ -189,12 +179,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "限界を超えて",
       "運命の反撃",
     ],
-  },
-  {
-    name: "ミシュティ",
-    yomi: "ミシュティ",
-    type: "AR",
-    uniqueKeyOptions: [
+    [
       "夢の欠片",
       "おやすみ",
       "ホラー映画の夜",
@@ -202,12 +187,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "ダメ人間の作法",
       "人をダメにするソファ",
     ],
-  },
-  {
-    name: "ヴェクター",
-    yomi: "ヴェクター",
-    type: "SMG",
-    uniqueKeyOptions: [
+    [
       "臨終ケア",
       "悲観主義拡散",
       "消極支援",
@@ -215,12 +195,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "不吉な予言者",
       "負の励まし",
     ],
-  },
-  {
-    name: "幼熙",
-    yomi: "ユヒ",
-    type: "AR",
-    uniqueKeyOptions: [
+    [
       "努力と結果",
       "はじけるステージ",
       "リズム共鳴",
@@ -228,12 +203,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "絶妙なポジション",
       "完璧な振り付け",
     ],
-  },
-  {
-    name: "朝暉",
-    yomi: "チョウキ",
-    type: "SMG",
-    uniqueKeyOptions: [
+    [
       "命門看破",
       "悪を憎むこと",
       "息抜き時間",
@@ -241,26 +211,8 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "憩いの旋律",
       "ダジャレ検定",
     ],
-  },
-  {
-    name: "スプリングフィールド",
-    yomi: "スプリングフィールド",
-    alias: "春田",
-    type: "SR",
-    uniqueKeyOptions: [
-      "結束力",
-      "情報探知",
-      "伝書鳩",
-      "気配り上手",
-      "笑顔の裏",
-      "優しい慰め",
-    ],
-  },
-  {
-    name: "ペリー",
-    yomi: "ペリー",
-    type: "SMG",
-    uniqueKeyOptions: [
+    ["結束力", "情報探知", "伝書鳩", "気配り上手", "笑顔の裏", "優しい慰め"],
+    [
       "取引の元金",
       "頼れる君",
       "極秘ビジネス情報",
@@ -268,12 +220,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "成熟した大人",
       "コミュ力",
     ],
-  },
-  {
-    name: "緋",
-    yomi: "フェイ",
-    type: "HG",
-    uniqueKeyOptions: [
+    [
       "痕跡追跡",
       "全力斬撃",
       "救援補給",
@@ -281,12 +228,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "窮地防衛",
       "スパーリング",
     ],
-  },
-  {
-    name: "秋樺",
-    yomi: "シュウカ",
-    type: "SG",
-    uniqueKeyOptions: [
+    [
       "配膳準備",
       "五徳点火",
       "みじん切り",
@@ -294,25 +236,8 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "揺らぐ湯気",
       "お腹いっぱい",
     ],
-  },
-  {
-    name: "ニキータ",
-    yomi: "ニキータ",
-    type: "SR",
-    uniqueKeyOptions: [
-      "正義の人形",
-      "広義の使者",
-      "英勇",
-      "信賞必罰",
-      "厳格視線",
-      "威圧感",
-    ],
-  },
-  {
-    name: "ビヨーカ",
-    yomi: "ビヨーカ",
-    type: "AR",
-    uniqueKeyOptions: [
+    ["正義の人形", "広義の使者", "英勇", "信賞必罰", "厳格視線", "威圧感"],
+    [
       "元気はつらつ",
       "涙の攻勢",
       "盛り上げ役",
@@ -320,12 +245,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "褒められたい",
       "勝ち気",
     ],
-  },
-  {
-    name: "アンドリス",
-    yomi: "アンドリス",
-    type: "AR",
-    uniqueKeyOptions: [
+    [
       "耳を澄ませば",
       "思考停滞",
       "堅実作業",
@@ -333,12 +253,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "情報共有",
       "事前調査",
     ],
-  },
-  {
-    name: "絳雨",
-    yomi: "コウウ",
-    type: "AR",
-    uniqueKeyOptions: [
+    [
       "ムードメーカー",
       "奇策逆転",
       "抑えきれぬ行動力",
@@ -346,25 +261,8 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "早い者勝ち",
       "余裕の一手",
     ],
-  },
-  {
-    name: "フローレンス",
-    yomi: "フローレンス",
-    type: "HG",
-    uniqueKeyOptions: [
-      "危険な刺激",
-      "愉悦",
-      "感度上昇",
-      "ご褒美",
-      "束縛欲",
-      "甘美な誘惑",
-    ],
-  },
-  {
-    name: "リンド",
-    yomi: "リンド",
-    type: "SG",
-    uniqueKeyOptions: [
+    ["危険な刺激", "愉悦", "感度上昇", "ご褒美", "束縛欲", "甘美な誘惑"],
+    [
       "痛覚感知",
       "夜更かしの勘",
       "ラジオ招待",
@@ -372,12 +270,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "甘味療法",
       "禁断症状",
     ],
-  },
-  {
-    name: "リヴァ",
-    yomi: "リヴァ",
-    type: "SMG",
-    uniqueKeyOptions: [
+    [
       "大人の余裕",
       "狐の微笑み",
       "臨機応変",
@@ -385,12 +278,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "冷静沈着",
       "準備万端",
     ],
-  },
-  {
-    name: "レナ",
-    yomi: "レナ",
-    type: "SMG",
-    uniqueKeyOptions: [
+    [
       "柔よく剛を制す",
       "動きはカッコよく",
       "完璧な処世術",
@@ -398,12 +286,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "前に進む力",
       "プロ級の対応力",
     ],
-  },
-  {
-    name: "ロベラ",
-    yomi: "ロベラ",
-    type: "SMG",
-    uniqueKeyOptions: [
+    [
       "防御降臨",
       "第三世代メンタル",
       "詳細分析",
@@ -411,12 +294,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "冷たい保護色",
       "安定したコア",
     ],
-  },
-  {
-    name: "ルイス",
-    yomi: "ルイス",
-    type: "MG",
-    uniqueKeyOptions: [
+    [
       "天真爛漫なデザイナー",
       "笑顔のアルゴリズム",
       "童心を守る信念",
@@ -424,12 +302,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "可愛さこそ正義",
       "クラウドの守護者",
     ],
-  },
-  {
-    name: "サクラ",
-    yomi: "サクラ",
-    type: "SMG",
-    uniqueKeyOptions: [
+    [
       "頑固頭",
       "時間指定配達",
       "誠意ある謝罪",
@@ -437,12 +310,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "一人前の勇気",
       "日々積み重ね",
     ],
-  },
-  {
-    name: "アルヴァ",
-    yomi: "アルヴァ",
-    type: "AR",
-    uniqueKeyOptions: [
+    [
       "雪地の達人",
       "後方支援のプロ",
       "援護指揮",
@@ -450,12 +318,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "仕切り直し",
       "骨ばみ",
     ],
-  },
-  {
-    name: "バチルダ",
-    yomi: "バチルダ",
-    type: "MG",
-    uniqueKeyOptions: [
+    [
       "口下手",
       "せっかち",
       "誤解された気持ち",
@@ -463,13 +326,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "実用的な改造",
       "機械操作",
     ],
-  },
-  {
-    name: "ヴォイマスティナ",
-    yomi: "ヴォイマスティナ",
-    alias: "ヴォイ",
-    type: "AR",
-    uniqueKeyOptions: [
+    [
       "破片のベール",
       "広視野",
       "全域狩猟",
@@ -477,12 +334,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "強者キラー",
       "傷跡を力に",
     ],
-  },
-  {
-    name: "レイニー",
-    yomi: "レイニー",
-    type: "SMG",
-    uniqueKeyOptions: [
+    [
       "メンタルの絆",
       "悪いの悪いの飛んでけ",
       "傘バリア",
@@ -490,12 +342,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "暖かな日差し",
       "OGASの実力",
     ],
-  },
-  {
-    name: "ヘレン",
-    yomi: "ヘレン",
-    type: "SG",
-    uniqueKeyOptions: [
+    [
       "ダブルスパイ",
       "冷艶の開花",
       "埋もれた過去",
@@ -503,25 +350,8 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "母性の輝き",
       "ルール執行者",
     ],
-  },
-  {
-    name: "パエトゥーサ",
-    yomi: "パエトゥーサ",
-    type: "近接",
-    uniqueKeyOptions: [
-      "冷めた血",
-      "駆ける決意",
-      "処刑人",
-      "生命の恵み",
-      "領域展開",
-      "双影同行",
-    ],
-  },
-  {
-    name: "バスティ",
-    yomi: "バスティ",
-    type: "HG",
-    uniqueKeyOptions: [
+    ["冷めた血", "駆ける決意", "処刑人", "生命の恵み", "領域展開", "双影同行"],
+    [
       "思いつき",
       "ストリートアート",
       "依存症",
@@ -529,12 +359,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "ドッキリ",
       "落書き",
     ],
-  },
-  {
-    name: "ローレライ",
-    yomi: "ローレライ",
-    type: "SR",
-    uniqueKeyOptions: [
+    [
       "秘めた熱情",
       "痛覚閾値",
       "縺れる夢",
@@ -542,12 +367,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "悪魔の歩調",
       "絶対的支配者",
     ],
-  },
-  {
-    name: "ハープシー",
-    yomi: "ハープシー",
-    type: "SMG",
-    uniqueKeyOptions: [
+    [
       "移動基地局",
       "乱暴カスタム",
       "丁寧な準備",
@@ -555,12 +375,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "奮う勇気",
       "遠距離聴取",
     ],
-  },
-  {
-    name: "シャイアン",
-    yomi: "シャイアン",
-    type: "SR",
-    uniqueKeyOptions: [
+    [
       "照れ屋注意",
       "自由本能",
       "勇気の一歩",
@@ -568,12 +383,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "強靭メンタル",
       "全集中",
     ],
-  },
-  {
-    name: "劉蒔",
-    yomi: "リュウシ",
-    type: "SR",
-    uniqueKeyOptions: [
+    [
       "相乗効果",
       "百発百中",
       "大盤振る舞い",
@@ -581,12 +391,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "資金投入",
       "一呼百諾",
     ],
-  },
-  {
-    name: "セクスタンス",
-    yomi: "セクスタンス",
-    type: "近接",
-    uniqueKeyOptions: [
+    [
       "契約の絆",
       "沈黙の碑文",
       "懐中調律",
@@ -594,12 +399,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "真紅の緞帳",
       "黒白鳥の羽",
     ],
-  },
-  {
-    name: "OTs-14",
-    yomi: "ots-14",
-    type: "AR",
-    uniqueKeyOptions: [
+    [
       "略奪者の歩み",
       "自己肯定感",
       "執着心",
@@ -607,12 +407,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "全てを賭して",
       "破滅への渇望",
     ],
-  },
-  {
-    name: "ネメシス・グノーシス",
-    yomi: "ネメシス・グノーシス",
-    type: "SR",
-    uniqueKeyOptions: [
+    [
       "帰還の錨",
       "賢明なる判断",
       "放浪者の本能",
@@ -620,26 +415,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "預言者の独白",
       "ヒガンの祝福",
     ],
-  },
-  {
-    name: "ソップ",
-    yomi: "ソップ",
-    type: "AR",
-    uniqueKeyOptions: [
-      "我が領域",
-      "また噛まれたいの",
-      "極寒地獄",
-      "領域展開",
-      "殺意全開",
-      "集団連携",
-    ],
-  },
-  // SRキャラ
-  {
-    name: "グローザ",
-    yomi: "グローザ",
-    type: "AR",
-    uniqueKeyOptions: [
+    [
       "多面的思考",
       "着実な指令",
       "戦況適応策略",
@@ -647,12 +423,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "持続的行動",
       "標準的回避法則",
     ],
-  },
-  {
-    name: "ネメシス",
-    yomi: "ネメシス",
-    type: "SR",
-    uniqueKeyOptions: [
+    [
       "呪いあらたか",
       "移り行く運勢",
       "幸運の前兆",
@@ -660,12 +431,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "逃れぬ苦難",
       "狩人の眼差し",
     ],
-  },
-  {
-    name: "キャロリック",
-    yomi: "キャロリック",
-    type: "近接",
-    uniqueKeyOptions: [
+    [
       "精神統一",
       "凶暴な捕食者",
       "燃え盛る怒り",
@@ -673,25 +439,8 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "追撃本能",
       "冷静潜行",
     ],
-  },
-  {
-    name: "コルフェン",
-    yomi: "コルフェン",
-    type: "HG",
-    uniqueKeyOptions: [
-      "医者の指示は絶対",
-      "緊急手術",
-      "救急車",
-      "衛生兵",
-      "静養",
-      "快復",
-    ],
-  },
-  {
-    name: "シャークリー",
-    yomi: "シャークリー",
-    type: "AR",
-    uniqueKeyOptions: [
+    ["医者の指示は絶対", "緊急手術", "救急車", "衛生兵", "静養", "快復"],
+    [
       "小悪魔の囁き",
       "ヒートウェイブ",
       "致命的な誘惑",
@@ -699,12 +448,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "心奪っちゃってごめん♡",
       "投げキッス",
     ],
-  },
-  {
-    name: "チータ",
-    yomi: "チータ",
-    type: "SMG",
-    uniqueKeyOptions: [
+    [
       "正当な研究経費",
       "超有益な発明",
       "チート",
@@ -712,12 +456,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "天才的な補助案",
       "天才のプライド",
     ],
-  },
-  {
-    name: "ナガン",
-    yomi: "ナガン",
-    type: "HG",
-    uniqueKeyOptions: [
+    [
       "颯爽出撃",
       "先輩の経験",
       "ステルス防弾チョッキ",
@@ -725,12 +464,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "一発で決める",
       "正義の弾丸",
     ],
-  },
-  {
-    name: "クシーニヤ",
-    yomi: "クシーニヤ",
-    type: "HG",
-    uniqueKeyOptions: [
+    [
       "互助的協力",
       "等価交換",
       "安定収益",
@@ -738,12 +472,7 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "友情サービス",
       "お得情報屋",
     ],
-  },
-  {
-    name: "リッタラ",
-    yomi: "リッタラ",
-    type: "MG",
-    uniqueKeyOptions: [
+    [
       "計画制定",
       "経験蓄積",
       "勝ちに乗ずる",
@@ -751,18 +480,147 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "戦況分析",
       "積極攻撃",
     ],
-  },
-  {
-    name: "ロッタ",
-    yomi: "ロッタ",
-    type: "SG",
-    uniqueKeyOptions: [
-      "静かな支援",
-      "自信強化",
-      "戦慄照準",
-      "慎重回避",
-      "鼓舞",
-      "慰撫",
+    ["静かな支援", "自信強化", "戦慄照準", "慎重回避", "鼓舞", "慰撫"],
+    [
+      "我が領域",
+      "また噛まれたいの",
+      "極寒地獄",
+      "領域展開",
+      "殺意全開",
+      "集団連携",
     ],
-  },
-];
+  ],
+  weapons: [
+    "ハートハンター",
+    "ミラージュ",
+    "遊星",
+    "メッツァルーナ",
+    "金石奏",
+    "ミエリティリ",
+    "ヒヨドリジョウゴ",
+    "サライスース",
+    "スヴァローグ",
+    "ビターキャラメル",
+    "重弦",
+    "讃歌",
+    "メイドコード",
+    "スキュラ",
+    "白昼夢",
+    "バンシィ",
+    "フラッシュスパーク",
+    "風来坊",
+    "信仰の光",
+    "エメニタ",
+    "ヘスティア",
+    "逐光",
+    "夢の翼",
+    "森の精霊",
+    "アグライア",
+    "躍虎",
+    "イアソ",
+    "棘の法則",
+    "ヴィクセン",
+    "ライオンセル",
+    "渡り人の讃歌",
+    "おもちゃ職人",
+    "緋色の約束",
+    "6P33",
+    "ネオルド",
+    "6P71",
+    "ペリヘリオン",
+    "ダルセット",
+    "フィリア",
+    "アズライール",
+    "ウェーブ・ノクターン",
+    "パラドックス",
+    "ナイトカルダモン",
+    "絶影",
+    "ヴェスパーローズ",
+    "カンピドリオ",
+    "シビュラ",
+    "PapaFigo",
+    "トップシークレット",
+    "アルカナ",
+    "ゲイレノル",
+    "冠角兎",
+    "ミョルニル",
+    "ソーリングバード",
+    "ハウリングスピア",
+  ],
+  commonKeys: [
+    "（汎用）攻撃%会心率",
+    "（汎用）攻撃%HP%",
+    "（汎用）攻撃%防御%",
+    "心に響く（ヴェプリー）",
+    "ダメージ全振り（ペリティア）",
+    "残光（トロロ）",
+    "高油温防護（サブリナ）",
+    "攻略談判（瓊玖）",
+    "お見通し（モシン・ナガン）",
+    "裂傷（ウルリド）",
+    "使命の加護（スオミ）",
+    "輝き勲章（ペーペーシャ）",
+    "生存本能（マキアート）",
+    "鐘磬の音（黛煙）",
+    "芸術の才覚（ドゥシェーヴヌイ）",
+    "ホットドリンク必須（センタウレイシー）",
+    "蘇る殺意（クルカイ）",
+    "ゲーム時間（ミシュティ）",
+    "弔鐘（ヴェクター）",
+    "メインダンサーの実力（幼熙）",
+    "チャルメラ音域（朝暉）",
+    "厳重警戒（スプリングフィールド）",
+    "ただいま成長中（ペリー）",
+    "死闘（緋）",
+    "繊細な味（秋樺）",
+    "アポロジスト（ニキータ）",
+    "寵愛争奪の決心（ビヨーカ）",
+    "感性磁場（アンドリス）",
+    "力こそ正義（絳雨）",
+    "飼い主の命令（フローレンス）",
+    "終わらぬ深夜（リンド）",
+    "キングスマン（リヴァ）",
+    "鋭き牙（レナ）",
+    "正義の加護（ロベラ）",
+    "力こそパワー（ルイス）",
+    "エース配達員（サクラ）",
+    "心眼（アルヴァ）",
+    "マイスター（バチルダ）",
+    "裂けるメロディ（ヴォイマスティナ）",
+    "全出力（レイニー）",
+    "不動の防衛線（ヘレン）",
+    "無中に有（パエトゥーサ）",
+    "独占力（バスティ）",
+    "満ち足りた溜息（ローレライ）",
+    "頼もしい技術（ハープシー）",
+    "再会の愛（シャイアン）",
+    "桁違いの財力（劉蒔）",
+    "掌の聖痕（セクスタンス）",
+    "誇りの源（OTs-14）",
+    "復讐の意志（ネメシス・グノーシス）",
+    "長持ち（グローザ）",
+    "辰星の祝福（ネメシス）",
+    "暴力の美学（キャロリック）",
+    "虚構の命（コルフェン）",
+    "序盤の花火（シャークリー）",
+    "奥深い発明（チータ）",
+    "先輩の教え（ナガン）",
+    "燃え盛る炎（クシーニヤ）",
+    "弱点撃破（リッタラ）",
+    "狩猟トラップ（ロッタ）",
+    "野性の呼び声（ソップ）",
+  ],
+  summons: [
+    "ガーディアン（ペーペーシャ）",
+    "定息鏑（朝暉）",
+    "クリーチ（ニキータ）",
+    "自動砲塔（アンドリス）",
+    "アリオス（フローレンス）",
+    "連携防御構装（バチルダ）",
+    "連携戦闘構装（バチルダ）",
+    "心像体（レイニー）",
+    "追猟者・Ⅱ型（ローレライ）",
+    "アルシン（スプリングフィールド）",
+    "ペガサス（劉蒔）",
+  ],
+};
