@@ -621,6 +621,19 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "ヒガンの祝福",
     ],
   },
+  {
+    name: "ソップ",
+    yomi: "ソップ",
+    type: "AR",
+    uniqueKeyOptions: [
+      "我が領域",
+      "また噛まれたいの",
+      "極寒地獄",
+      "領域展開",
+      "殺意全開",
+      "集団連携",
+    ],
+  },
   // SRキャラ
   {
     name: "グローザ",
