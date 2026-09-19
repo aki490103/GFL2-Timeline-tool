@@ -1,8 +1,5 @@
 import { deflate, inflate } from "pako";
-import { CHARACTER_OPTIONS } from "../data/characters";
-import { COMMON_KEY_OPTIONS } from "../data/common_keys";
-import { SUMMON_OPTIONS } from "../data/summons";
-import { WEAPON_OPTIONS } from "../data/weapons";
+import { ORDER_LOCK } from "../data/order-lock";
 import { CHAR_SLOT_IDS } from "./defaults";
 import { defaultBoss } from "./grid";
 import { asArray, asInt, asString, atIndex } from "./guards";
@@ -43,10 +40,10 @@ const unpack = (body: string): unknown =>
 //   2. キャラ名・武器名・キー名を候補リストの添字にする
 // ことで、全欄を埋めた編成で 1894 文字 → 603 文字になる。
 //
-// 添字方式の代償として「候補リストの並び替え・途中挿入・削除」は
-// 既存の共有URLを壊す。src/data/order-lock.json と data-order.test.ts が
-// これを機械的に防いでいる。
-// 逆に「名前の変更」は添字が動かないため安全（v1 では URL が壊れていた）。
+// 添字の基準は画面に出す候補リスト（src/data/*.ts）ではなく、
+// 追記専用の添字表 src/data/order-lock.ts である。両者を分けているため、
+// 候補リスト側はレアリティ順などの都合で自由に並び替え・途中挿入してよい。
+// 添字表の保守は order-lock.sync.test.ts と `make lock` が担う。
 
 const NOT_SELECTED = -1;
 
@@ -67,8 +64,9 @@ const slotToActor = (slot: unknown, summonCount: number): string | null => {
   return i >= 0 && i < summonCount ? `s${i + 1}` : null;
 };
 
-const indexOfName = (list: readonly { name: string }[], name?: string) =>
-  name ? list.findIndex((o) => o.name === name) : NOT_SELECTED;
+/** 添字表に無い名前（古いデータ由来など）は「未選択」として落とす */
+const indexOfName = (lockedNames: readonly string[], name?: string) =>
+  name ? lockedNames.indexOf(name) : NOT_SELECTED;
 
 /** スキルも備考も空の行は情報を持たないので URL には載せない */
 const isBlankStep = (s: Step) => s.skill === "" && (s.note ?? "") === "";
@@ -97,21 +95,21 @@ const encodeV2 = (tl: TimelineV1): unknown[] => {
     [tl.grid.cols, tl.grid.rows],
     [boss.x, boss.y, boss.w, boss.h],
     tl.characters.map((c) => {
-      const ci = indexOfName(CHARACTER_OPTIONS, c.name);
-      const uniqueOptions = CHARACTER_OPTIONS[ci]?.uniqueKeyOptions ?? [];
+      const ci = indexOfName(ORDER_LOCK.characters, c.name);
+      const uniqueOptions = ORDER_LOCK.uniqueKeys[ci] ?? [];
       return [
         ci,
         c.equipment.limitBreak,
-        indexOfName(WEAPON_OPTIONS, c.equipment.weapon),
+        indexOfName(ORDER_LOCK.weapons, c.equipment.weapon),
         c.equipment.uniqueKeySet.map((k) =>
           k ? uniqueOptions.indexOf(k) : NOT_SELECTED,
         ),
         c.equipment.commonKeySet.map((k) =>
-          k ? COMMON_KEY_OPTIONS.indexOf(k) : NOT_SELECTED,
+          k ? indexOfName(ORDER_LOCK.commonKeys, k) : NOT_SELECTED,
         ),
       ];
     }),
-    tl.summons.map((s) => indexOfName(SUMMON_OPTIONS, s.name)),
+    tl.summons.map((s) => indexOfName(ORDER_LOCK.summons, s.name)),
     [tl.prep, ...tl.turns].map((t) => encodeTurnV2(t, n)),
   ];
 };
@@ -128,7 +126,7 @@ const decodeV2 = (payload: unknown): unknown => {
   const [bx, by, bw, bh] = asArray(boss);
 
   const summonList = asArray(summons).map((si) => ({
-    name: atIndex(SUMMON_OPTIONS, si)?.name ?? "",
+    name: atIndex(ORDER_LOCK.summons, si) ?? "",
   }));
   const n = summonList.length;
 
@@ -164,16 +162,18 @@ const decodeV2 = (payload: unknown): unknown => {
     boss: { x: bx, y: by, w: bw, h: bh },
     characters: asArray(chars).map((raw, i) => {
       const [ci, limitBreak, wi, uks, cks] = asArray(raw);
-      const opt = atIndex(CHARACTER_OPTIONS, ci);
-      const uniqueOptions = opt?.uniqueKeyOptions ?? [];
+      const name = atIndex(ORDER_LOCK.characters, ci);
+      const uniqueOptions = ORDER_LOCK.uniqueKeys[asInt(ci, -1)] ?? [];
       return {
         id: CHAR_SLOT_IDS[i],
-        name: opt?.name ?? "",
+        name: name ?? "",
         equipment: {
           limitBreak,
-          weapon: atIndex(WEAPON_OPTIONS, wi)?.name ?? "",
+          weapon: atIndex(ORDER_LOCK.weapons, wi) ?? "",
           uniqueKeySet: asArray(uks).map((k) => atIndex(uniqueOptions, k)),
-          commonKeySet: asArray(cks).map((k) => atIndex(COMMON_KEY_OPTIONS, k)),
+          commonKeySet: asArray(cks).map((k) =>
+            atIndex(ORDER_LOCK.commonKeys, k),
+          ),
         },
       };
     }),
