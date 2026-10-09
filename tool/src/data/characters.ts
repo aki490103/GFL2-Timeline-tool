@@ -634,6 +634,19 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "集団連携",
     ],
   },
+  {
+    name: "ミティール",
+    yomi: "ミティール",
+    type: "SMG",
+    uniqueKeyOptions: [
+      "映画級表現",
+      "変装演技",
+      "空中3回転半銃キャッチ",
+      "泣き上手",
+      "モノマネ突撃",
+      "真偽不明",
+    ],
+  },
   // SRキャラ
   {
     name: "グローザ",

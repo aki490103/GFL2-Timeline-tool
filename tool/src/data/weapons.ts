@@ -246,6 +246,11 @@ export const WEAPON_OPTIONS: WeaponOption[] = [
     yomi: "ハウリングスピア",
     type: "AR",
   },
+  {
+    name: "ラットノヴァ",
+    yomi: "ラットノヴァ",
+    type: "SMG",
+  },
   // 走行計画武器
   {
     name: "PapaFigo",
