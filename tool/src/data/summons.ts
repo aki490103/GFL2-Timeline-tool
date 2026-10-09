@@ -49,4 +49,8 @@ export const SUMMON_OPTIONS: SummonOption[] = [
     name: "ペガサス（劉蒔）",
     alias: "ペガサス",
   },
+  {
+    name: "孤影（ミティール）",
+    alias: "孤影",
+  },
 ];
