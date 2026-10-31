@@ -647,6 +647,32 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "真偽不明",
     ],
   },
+  {
+    name: "ウェルロッド",
+    yomi: "ウェルロッド",
+    type: "HG",
+    uniqueKeyOptions: [
+      "名探偵気質",
+      "事前調査",
+      "本格推理",
+      "べロス狩猟",
+      "最後の事件",
+      "二人一体の探偵",
+    ],
+  },
+  {
+    name: "フェアリン",
+    yomi: "フェアリン",
+    type: "AR",
+    uniqueKeyOptions: [
+      "キツネの刃尾",
+      "緊張感",
+      "最後の反撃",
+      "狩猟ステップ",
+      "ファーコート",
+      "マーキング",
+    ],
+  },
   // SRキャラ
   {
     name: "グローザ",
