@@ -585,6 +585,7 @@ export const ORDER_LOCK: OrderLock = {
     "ラットノヴァ",
     "レティセンス",
     "ヴァルトファング",
+    "チェルノボグ",
   ],
   commonKeys: [
     "（汎用）攻撃%会心率",
