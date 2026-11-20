@@ -53,4 +53,12 @@ export const SUMMON_OPTIONS: SummonOption[] = [
     name: "孤影（ミティール）",
     alias: "孤影",
   },
+  {
+    name: "クリプター（コレダ）",
+    alias: "クリプター",
+  },
+  {
+    name: "定点衛星（トロロ）",
+    alias: "定点衛星",
+  },
 ];

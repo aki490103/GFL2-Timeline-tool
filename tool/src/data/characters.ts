@@ -673,6 +673,19 @@ export const CHARACTER_OPTIONS: CharacterOption[] = [
       "マーキング",
     ],
   },
+  {
+    name: "コレダ",
+    yomi: "コレダ",
+    type: "AR",
+    uniqueKeyOptions: [
+      "信条",
+      "死ぬ暇もない",
+      "破滅の夢",
+      "非常手段",
+      "我が名を知れ",
+      "死中に活",
+    ],
+  },
   // SRキャラ
   {
     name: "グローザ",
